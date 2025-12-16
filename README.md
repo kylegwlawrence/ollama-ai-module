@@ -39,6 +39,11 @@ A Python toolkit for working with Ollama AI models, featuring interactive model 
    source .venv/bin/activate  # On Windows: .venv\Scripts\activate
    ```
 
+3. Install dependencies:
+   ```bash
+   pip install -r requirements.txt
+   ```
+
 ## Usage
 
 ### Interactive Model Chat
@@ -79,18 +84,23 @@ python benchmark_models.py "What is Python?" -m llama2 -o results.csv
 The benchmark creates a CSV file with:
 - `model_name`: Name of the AI model
 - `duration_seconds`: Response time in seconds
+- `cpu_avg_percent`: Average CPU usage during execution
+- `cpu_peak_percent`: Peak CPU usage during execution
+- `memory_avg_mb`: Average memory usage in MB
+- `memory_peak_mb`: Peak memory usage in MB
 - `response`: The full AI response
 - `timestamp`: When the prompt was sent
 
 **Important Note on Benchmarking:**
-This is a simplified benchmarking tool that measures only response time for a single prompt. It does not evaluate:
+This is a simplified benchmarking tool that measures response time and basic resource usage (CPU and memory) for a single prompt. It does not evaluate:
 - Response quality or accuracy
 - Model capabilities across different task types
 - Token throughput or generation speed
-- Memory usage or system resources
 - Consistency across multiple runs
+- Disk I/O or network usage
+- GPU usage (for GPU-accelerated models)
 
-Response time can vary significantly based on system resources, model size, prompt complexity, and other factors. This tool is intended for basic comparison purposes only and should not be considered a comprehensive performance evaluation.
+Resource metrics are sampled every 0.5 seconds. CPU percentage can exceed 100% on multi-core systems (e.g., 200% = 2 full cores). Response time and resource usage can vary significantly based on system resources, model size, prompt complexity, and other factors. This tool is intended for basic comparison purposes only and should not be considered a comprehensive performance evaluation.
 
 ## Project Structure
 

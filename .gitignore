@@ -17,11 +17,13 @@ __pycache__/
 # IDE
 .vscode/
 .idea/
+.claude/
 *.swp
 *.swo
 
 # Benchmark output
 *.csv
+benchmarks/
 
 # OS
 .DS_Store
