@@ -60,19 +60,55 @@ This will:
 3. Check if the model is installed (and install if needed)
 4. Prompt you for input to send to the model
 
+### Conversational Chat with Context
+
+Have multi-turn conversations where the model remembers previous messages:
+
+```python
+from src.run_ollama import ChatSession, ensure_ollama_server_running
+
+# Ensure server is running
+ensure_ollama_server_running()
+
+# Create chat session
+chat = ChatSession("llama2")
+
+# Optional: Set system prompt
+chat.set_system_prompt("You are a helpful coding assistant.")
+
+# Have a conversation
+response1 = chat.send_message("What is Python?")
+print(response1)
+
+response2 = chat.send_message("Can you show me an example?")  # Model remembers context
+print(response2)
+
+response3 = chat.send_message("Now explain that code")  # Model still remembers
+print(response3)
+
+# Reset conversation if needed
+chat.reset()
+```
+
+**Key Features:**
+- Automatic context management - model remembers conversation history
+- Simple API - just call `send_message()` repeatedly
+- Reset capability to start fresh conversations
+- System prompt support for behavior customization
+
 ### Benchmarking Models
 
 Compare multiple models with the same prompt:
 
 ```bash
 # Benchmark all installed models
-python benchmark_models.py "Explain quantum computing in simple terms"
+python -m src.benchmark_models "Explain quantum computing in simple terms"
 
 # Benchmark specific models
-python benchmark_models.py "Tell me a joke" -m llama2 mistral phi
+python -m src.benchmark_models "Tell me a joke" -m llama2 mistral phi
 
 # Specify custom output file
-python benchmark_models.py "What is Python?" -m llama2 -o results.csv
+python -m src.benchmark_models "What is Python?" -m llama2 -o results.csv
 ```
 
 **Options:**
@@ -106,9 +142,11 @@ Resource metrics are sampled every 0.5 seconds. CPU percentage can exceed 100% o
 
 ```
 hello-ollama/
-├── benchmark_models.py          # Model benchmarking tool
 ├── main.py                      # Interactive chat interface
 ├── src/
+│   ├── __init__.py             # Package initialization
+│   ├── __main__.py             # Entry point for module execution
+│   ├── benchmark_models.py     # Model benchmarking tool
 │   ├── install_ollama_model.py # Model installation utilities
 │   ├── run_ollama.py           # Core Ollama execution wrapper
 │   └── select_model.py         # Model selection interface
@@ -155,19 +193,85 @@ if __name__ == "__main__":
 
 ```python
 from src.select_model import get_installed_models
-from src.install_ollama_model import check_ollama_model_installed
-from src.run_ollama import run_ollama
+from src.install_ollama_model import check_and_install_model
+from src.run_ollama import run_ollama, ChatSession, send_chat_message, run_chat_with_monitoring
 
 # Get list of installed models
 models = get_installed_models()
 print(f"Installed models: {models}")
 
 # Ensure a model is installed
-check_ollama_model_installed("llama2")
+check_and_install_model("llama2")
 
 # Run a model and get output
 response = run_ollama("llama2", "Tell me a joke", return_output=True)
 print(response)
+
+# Create and use a chat session
+chat = ChatSession("llama2", host="127.0.0.1", port=11434)
+response = chat.send_message("Hello!")
+print(response)
+
+# Direct API call for advanced use cases
+messages = [
+    {"role": "user", "content": "What is Python?"},
+    {"role": "assistant", "content": "Python is a programming language..."},
+    {"role": "user", "content": "Show me an example"}
+]
+response = send_chat_message("llama2", messages)
+print(response)
+```
+
+### Using Chat Sessions for Conversations
+
+Use ChatSession for multi-turn conversations with automatic context management:
+
+```python
+from src.run_ollama import ChatSession, ensure_ollama_server_running
+
+ensure_ollama_server_running()
+
+# Create a chat session
+chat = ChatSession("mistral")
+
+# Have a multi-turn conversation
+prompts = [
+    "What is machine learning?",
+    "Can you give me a simple example?",
+    "How would I implement that in Python?"
+]
+
+for prompt in prompts:
+    response = chat.send_message(prompt)
+    print(f"User: {prompt}")
+    print(f"Assistant: {response}\n")
+
+# Inspect conversation history
+history = chat.get_history()
+print(f"Conversation had {len(history)} messages")
+```
+
+**Benefits:**
+- Model automatically remembers previous messages
+- Perfect for building intelligent applications
+- Simple API - no manual history management needed
+
+### Chat with Resource Monitoring
+
+Monitor system resources while having conversations:
+
+```python
+from src.run_ollama import ChatSession, run_chat_with_monitoring, ensure_ollama_server_running
+
+ensure_ollama_server_running()
+chat = ChatSession("llama2")
+
+# Get response with resource metrics
+response, metrics = run_chat_with_monitoring(chat, "Tell me about AI")
+print(f"Response: {response}")
+if metrics:
+    print(f"CPU avg: {metrics['cpu_avg_percent']}%")
+    print(f"Memory avg: {metrics['memory_avg_mb']} MB")
 ```
 
 ### Programmatic Benchmarking

@@ -1,48 +1,83 @@
 import csv
 import os
 import time
+import threading
 import argparse
 from datetime import datetime
 from typing import List, Dict, Optional
-from src.run_ollama import run_ollama, run_ollama_with_monitoring
+from src.run_ollama import run_ollama_smart, run_ollama_with_monitoring, ensure_ollama_server_running, get_ollama_server_metrics
 from src.select_model import get_installed_models
-from src.install_ollama_model import check_ollama_model_installed
+from src.install_ollama_model import check_and_install_model
 
 
 def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, any]:
     """
-    Runs an Ollama model with a prompt and measures response time.
+    Runs an Ollama model with a prompt and measures response time and resource usage.
 
     Args:
         model_name: Name of the Ollama model to use
         prompt: The prompt to send to the model
 
     Returns:
-        Dictionary containing model_name, duration, response, and timestamp
+        Dictionary containing model_name, duration, response, and resource metrics
     """
-    start_time = time.time()
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    cpu_samples = []
+    memory_samples = []
+
+    def monitor_resources():
+        """Background thread to collect resource metrics."""
+        while monitoring:
+            metrics = get_ollama_server_metrics()
+            if metrics:
+                cpu_samples.append(metrics['cpu_percent'])
+                memory_samples.append(metrics['memory_mb'])
+            time.sleep(0.1)  # Sample every 100ms
 
     try:
-        response, resource_stats = run_ollama_with_monitoring(model_name, prompt)
+        # Start monitoring
+        monitoring = True
+        monitor_thread = threading.Thread(target=monitor_resources, daemon=True)
+        monitor_thread.start()
+
+        start_time = time.time()
+
+        # Use smart runner to leverage already-running models via API
+        response = run_ollama_smart(model_name, prompt, return_output=True)
+
         end_time = time.time()
         duration = end_time - start_time
+
+        # Stop monitoring
+        monitoring = False
+        monitor_thread.join(timeout=1)
+
+        # Calculate statistics
+        if cpu_samples and memory_samples:
+            cpu_avg = round(sum(cpu_samples) / len(cpu_samples), 2)
+            cpu_peak = round(max(cpu_samples), 2)
+            memory_avg = round(sum(memory_samples) / len(memory_samples), 2)
+            memory_peak = round(max(memory_samples), 2)
+        else:
+            cpu_avg = cpu_peak = memory_avg = memory_peak = None
 
         return {
             'model_name': model_name,
             'prompt': prompt,
             'duration_seconds': round(duration, 2),
-            'cpu_avg_percent': resource_stats['cpu_avg_percent'],
-            'cpu_peak_percent': resource_stats['cpu_peak_percent'],
-            'memory_avg_mb': resource_stats['memory_avg_mb'],
-            'memory_peak_mb': resource_stats['memory_peak_mb'],
+            'cpu_avg_percent': cpu_avg,
+            'cpu_peak_percent': cpu_peak,
+            'memory_avg_mb': memory_avg,
+            'memory_peak_mb': memory_peak,
             'response': response.strip().replace('\n', ' '),
             'timestamp': timestamp
         }
 
     except Exception as e:
+        # Stop monitoring on error
+        monitoring = False
         end_time = time.time()
-        duration = end_time - start_time
+        duration = end_time - start_time if 'start_time' in locals() else 0
 
         return {
             'model_name': model_name,
@@ -67,6 +102,9 @@ def benchmark_models(models: Optional[List[str]] = None, prompt: str = None, out
         output_file: Path to the output CSV file (default: generates timestamped filename)
         use_installed: If True, uses all installed models instead of custom list
     """
+    # Ensure Ollama server is running before benchmarking
+    ensure_ollama_server_running()
+
     # Generate timestamped filename if not provided
     if output_file is None:
         benchmark_dir = "benchmarks"
@@ -82,7 +120,7 @@ def benchmark_models(models: Optional[List[str]] = None, prompt: str = None, out
         models_to_benchmark = models
         # Check and install each model if needed
         for model in models_to_benchmark:
-            check_ollama_model_installed(model)
+            check_and_install_model(model)
     else:
         raise ValueError("Either provide a list of models or set use_installed=True")
 

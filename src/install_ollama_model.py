@@ -1,10 +1,14 @@
 import subprocess
+from src.run_ollama import ensure_ollama_running
 
-def check_ollama_model_installed(model_name):
+def check_and_install_model(model_name):
   """
   Checks if the Ollama model is installed locally and pulls it if not.
   """
   try:
+    # Ensure the Ollama server is running before attempting to pull models
+    ensure_ollama_running()
+
     command = ["ollama", "--version"]
     result = subprocess.run(command, capture_output=True, text=True, check=True)
 
@@ -33,8 +37,24 @@ def check_ollama_model_installed(model_name):
     print("Ollama not found.  Please ensure Ollama is installed and in your PATH.")
     return False
 
+def check_and_install_models(models):
+  """
+  Checks and installs multiple Ollama models from a list.
+
+  Args:
+    models: A list of model names to check and install.
+
+  Returns:
+    A list of tuples (model_name, success) indicating which models were successfully installed.
+  """
+  results = []
+  for model in models:
+    success = check_and_install_model(model)
+    results.append((model, success))
+  return results
+
 if __name__ == "__main__":
-  if check_ollama_model_installed("deepseek-coder-v2:16b"):
+  if check_and_install_model("deepseek-coder-v2:16b"):
     print("All good!")
   else:
     print("Something went wrong.  Check the error messages.")
