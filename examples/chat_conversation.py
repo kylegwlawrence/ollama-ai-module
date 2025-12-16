@@ -6,6 +6,12 @@ This script shows how to use ChatSession to maintain conversation context
 across multiple prompts without terminal input.
 """
 
+import sys
+from pathlib import Path
+
+# Add parent directory to path so we can import src module
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
 from src.run_ollama import ChatSession, ensure_ollama_server_running
 
 
@@ -16,8 +22,13 @@ def main():
     # Ensure Ollama server is running
     ensure_ollama_server_running()
 
-    # Create chat session with llama2 model (or change to your preferred model)
-    chat = ChatSession("llama2")
+    # Model to use (change this to your preferred installed model)
+    # To see available models: ollama list
+    # To install a model: ollama pull <model-name>
+    model_name = "llama2"
+
+    # Create chat session with the model
+    chat = ChatSession(model_name)
 
     # Optional: Set system prompt for behavior customization
     chat.set_system_prompt("You are a helpful assistant that provides clear and concise answers.")
