@@ -1,316 +1,172 @@
 # Hello Ollama
 
-A Python toolkit for working with Ollama AI models, featuring interactive model selection and performance benchmarking capabilities.
+A Python toolkit for working with Ollama AI models, featuring interactive model selection, conversational chat, and performance benchmarking.
 
 ## Features
 
-- **Interactive Model Selection**: Choose from locally installed Ollama models with an intuitive CLI interface
-- **Model Benchmarking**: Compare response times and outputs across multiple AI models
-- **Automatic Model Installation**: Automatically downloads and installs models if not already available
-- **CSV Export**: Export benchmark results for analysis and comparison
+- **Interactive Model Chat**: Choose from installed models and chat interactively
+- **Conversational Context**: Multi-turn conversations with automatic message history
+- **Model Benchmarking**: Compare response times and resource usage across models
+- **Automatic Installation**: Download and install models as needed
+- **CSV Export**: Export benchmark results for analysis
 
 ## Prerequisites
 
-* **Python:** Python 3.7 or higher. Check your version:
-  ```bash
-  python --version
-  # or
-  python3 --version
-  ```
-
-* **pip:** Python's package installer (usually included with Python). Update it:
-  ```bash
-  pip install --upgrade pip
-  ```
-
-* **Ollama:** Download and install from [https://ollama.com/](https://ollama.com/)
+- **Python 3.7+**: [Check your version](https://www.python.org/downloads/)
+- **pip**: Usually included with Python
+- **Ollama**: Download from [https://ollama.com/](https://ollama.com/)
 
 ## Installation
 
-1. Clone this repository:
-   ```bash
-   git clone <repository-url>
-   cd hello-ollama
-   ```
-
-2. (Optional) Create a virtual environment:
-   ```bash
-   python -m venv .venv
-   source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-   ```
-
-3. Install dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
-
-## Usage
-
-### Interactive Model Chat
-
-Run the main script to select a model and chat interactively:
-
+1. Clone and setup:
 ```bash
-python main.py
+git clone <repository-url>
+cd hello-ollama
+python -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-This will:
-1. Show available installed models
-2. Let you select a model or enter a custom model name
-3. Check if the model is installed (and install if needed)
-4. Prompt you for input to send to the model
-
-### Conversational Chat with Context
-
-Have multi-turn conversations where the model remembers previous messages:
-
-```python
-from src.run_ollama import ChatSession, ensure_ollama_server_running
-
-# Ensure server is running
-ensure_ollama_server_running()
-
-# Create chat session
-chat = ChatSession("llama2")
-
-# Optional: Set system prompt
-chat.set_system_prompt("You are a helpful coding assistant.")
-
-# Have a conversation
-response1 = chat.send_message("What is Python?")
-print(response1)
-
-response2 = chat.send_message("Can you show me an example?")  # Model remembers context
-print(response2)
-
-response3 = chat.send_message("Now explain that code")  # Model still remembers
-print(response3)
-
-# Reset conversation if needed
-chat.reset()
+2. Install dependencies:
+```bash
+pip install -r requirements.txt
 ```
 
-**Key Features:**
-- Automatic context management - model remembers conversation history
-- Simple API - just call `send_message()` repeatedly
-- Reset capability to start fresh conversations
-- System prompt support for behavior customization
+## Quick Start
 
-### Benchmarking Models
+### Chat with a Model
+
+Run the main script with a model, prompt, and timeout:
+```bash
+python main.py "What is Python?" -m llama2 -t 5
+```
+
+**Arguments:**
+- `prompt` (positional): The prompt to send to the model
+- `-m, --model` (required): Model name to use
+- `-t, --timeout` (required): Inactivity timeout in minutes
+
+**Options:**
+- `-i, --interactive`: Run in interactive mode (continuous prompting)
+- `--skip-server-check`: Skip checking if Ollama server is running
+- `--skip-model-check`: Skip checking if model is installed
+- `--no-inactivity-monitor`: Disable inactivity monitoring
+
+**Examples:**
+```bash
+# Single prompt with timeout
+python main.py "Hello" -m llama2 -t 5
+
+# Interactive mode (continuous prompting)
+python main.py -i -m mistral -t 10
+
+# Skip model check with custom timeout
+python main.py "Tell me a joke" -m phi -t 15 --skip-model-check
+```
+
+### Benchmark Models
 
 Compare multiple models with the same prompt:
 
 ```bash
 # Benchmark all installed models
-python -m src.benchmark_models "Explain quantum computing in simple terms"
+python benchmark_models.py "Explain quantum computing"
 
 # Benchmark specific models
-python -m src.benchmark_models "Tell me a joke" -m llama2 mistral phi
+python benchmark_models.py "Tell me a joke" -m llama2 mistral phi
 
-# Specify custom output file
-python -m src.benchmark_models "What is Python?" -m llama2 -o results.csv
+# Save to custom file
+python benchmark_models.py "What is Python?" -m llama2 -o results.csv
 ```
 
-**Options:**
-- `prompt` (required): The prompt to test all models with
-- `-m, --models`: List of model names (if not provided, uses all installed models)
-- `-o, --output`: Output CSV filename (default: model_benchmark.csv)
+**Output:** CSV file with model name, response time, CPU/memory usage, response text, and timestamp.
 
-**Output:**
-The benchmark creates a CSV file with:
-- `model_name`: Name of the AI model
-- `duration_seconds`: Response time in seconds
-- `cpu_avg_percent`: Average CPU usage during execution
-- `cpu_peak_percent`: Peak CPU usage during execution
-- `memory_avg_mb`: Average memory usage in MB
-- `memory_peak_mb`: Peak memory usage in MB
-- `response`: The full AI response
-- `timestamp`: When the prompt was sent
+### Python Code Examples
 
-**Important Note on Benchmarking:**
-This is a simplified benchmarking tool that measures response time and basic resource usage (CPU and memory) for a single prompt. It does not evaluate:
-- Response quality or accuracy
-- Model capabilities across different task types
-- Token throughput or generation speed
-- Consistency across multiple runs
-- Disk I/O or network usage
-- GPU usage (for GPU-accelerated models)
+**Simple conversation:**
+```python
+from src.run_ollama import ChatSession, ensure_ollama_server_running
 
-Resource metrics are sampled every 0.5 seconds. CPU percentage can exceed 100% on multi-core systems (e.g., 200% = 2 full cores). Response time and resource usage can vary significantly based on system resources, model size, prompt complexity, and other factors. This tool is intended for basic comparison purposes only and should not be considered a comprehensive performance evaluation.
+ensure_ollama_server_running()
+chat = ChatSession("llama2")
+
+response1 = chat.send_message("What is Python?")
+print(response1)
+
+response2 = chat.send_message("Show me an example")  # Model remembers context
+print(response2)
+```
+
+**Install and run a model:**
+```python
+from src.install_ollama_model import check_and_install_model
+from src.run_ollama import run_ollama_smart
+
+check_and_install_model("mistral")
+response = run_ollama_smart("mistral", "Hello!")
+print(response)
+```
+
+**Get installed models:**
+```python
+from src.group_models import get_installed_models
+
+models = get_installed_models()
+print(f"Installed models: {models}")
+```
 
 ## Project Structure
 
 ```
 hello-ollama/
-├── main.py                      # Interactive chat interface
+├── main.py                      # CLI chat interface
+├── benchmark_models.py          # Model benchmarking tool
 ├── src/
 │   ├── __init__.py             # Package initialization
-│   ├── __main__.py             # Entry point for module execution
-│   ├── benchmark_models.py     # Model benchmarking tool
-│   ├── install_ollama_model.py # Model installation utilities
-│   ├── run_ollama.py           # Core Ollama execution wrapper
-│   └── select_model.py         # Model selection interface
+│   ├── install_ollama_model.py # Model installation
+│   ├── group_models.py         # Model listing and filtering
+│   └── run_ollama.py           # Core Ollama wrapper
 ├── examples/
 │   └── hello-world.py          # Simple example script
 └── README.md                    # This file
 ```
 
-## Basic Scripting Example
-
-Here's a simple Python script that demonstrates how to run a language model with Ollama:
-
-```python
-import subprocess
-
-def run_ollama(model_name, prompt):
-  """Runs an Ollama model and returns the output."""
-  try:
-    result = subprocess.run(['ollama', 'run', model_name],
-                          input=prompt, capture_output=True, text=True, check=True)
-    print(result.stdout)
-  except subprocess.CalledProcessError as e:
-    print(f"Error running Ollama: {e}")
-
-if __name__ == "__main__":
-  model_name = "llama2"
-  prompt = "Hello, how are you today?"
-  run_ollama(model_name, prompt)
-```
-
-### Explanation
-
-* **`import subprocess`:** Essential for running external commands like Ollama
-* **`run_ollama(model_name, prompt)`:** Encapsulates the logic for running the model
-  * `subprocess.run(...)`: Executes the Ollama command
-  * `capture_output=True`: Captures stdout and stderr
-  * `text=True`: Decodes output as text
-  * `check=True`: Raises exception on non-zero exit code
-* **`try...except` block:** Handles potential errors gracefully
-
 ## Advanced Usage
 
-### Using the Module Functions
+For advanced examples including:
+- Chat sessions with system prompts
+- Resource monitoring
+- Direct API calls
+- Programmatic benchmarking
 
-```python
-from src.select_model import get_installed_models
-from src.install_ollama_model import check_and_install_model
-from src.run_ollama import run_ollama, ChatSession, send_chat_message, run_chat_with_monitoring
+See [CHAT_API_GUIDE.md](CHAT_API_GUIDE.md)
 
-# Get list of installed models
-models = get_installed_models()
-print(f"Installed models: {models}")
+## Benchmarking Notes
 
-# Ensure a model is installed
-check_and_install_model("llama2")
+This tool measures response time and basic resource usage. It does not evaluate:
+- Response quality or accuracy
+- Model capabilities across different tasks
+- Token throughput or generation speed
+- Consistency across multiple runs
+- GPU usage (for GPU-accelerated models)
 
-# Run a model and get output
-response = run_ollama("llama2", "Tell me a joke", return_output=True)
-print(response)
+Resource metrics are sampled periodically. CPU percentage can exceed 100% on multi-core systems. Results vary based on system resources, model size, and prompt complexity.
 
-# Create and use a chat session
-chat = ChatSession("llama2", host="127.0.0.1", port=11434)
-response = chat.send_message("Hello!")
-print(response)
+## Tips
 
-# Direct API call for advanced use cases
-messages = [
-    {"role": "user", "content": "What is Python?"},
-    {"role": "assistant", "content": "Python is a programming language..."},
-    {"role": "user", "content": "Show me an example"}
-]
-response = send_chat_message("llama2", messages)
-print(response)
-```
-
-### Using Chat Sessions for Conversations
-
-Use ChatSession for multi-turn conversations with automatic context management:
-
-```python
-from src.run_ollama import ChatSession, ensure_ollama_server_running
-
-ensure_ollama_server_running()
-
-# Create a chat session
-chat = ChatSession("mistral")
-
-# Have a multi-turn conversation
-prompts = [
-    "What is machine learning?",
-    "Can you give me a simple example?",
-    "How would I implement that in Python?"
-]
-
-for prompt in prompts:
-    response = chat.send_message(prompt)
-    print(f"User: {prompt}")
-    print(f"Assistant: {response}\n")
-
-# Inspect conversation history
-history = chat.get_history()
-print(f"Conversation had {len(history)} messages")
-```
-
-**Benefits:**
-- Model automatically remembers previous messages
-- Perfect for building intelligent applications
-- Simple API - no manual history management needed
-
-### Chat with Resource Monitoring
-
-Monitor system resources while having conversations:
-
-```python
-from src.run_ollama import ChatSession, run_chat_with_monitoring, ensure_ollama_server_running
-
-ensure_ollama_server_running()
-chat = ChatSession("llama2")
-
-# Get response with resource metrics
-response, metrics = run_chat_with_monitoring(chat, "Tell me about AI")
-print(f"Response: {response}")
-if metrics:
-    print(f"CPU avg: {metrics['cpu_avg_percent']}%")
-    print(f"Memory avg: {metrics['memory_avg_mb']} MB")
-```
-
-### Programmatic Benchmarking
-
-```python
-from benchmark_models import benchmark_models
-
-# Benchmark specific models
-benchmark_models(
-    models=['llama2', 'mistral'],
-    prompt="What is artificial intelligence?",
-    output_file="my_benchmark.csv"
-)
-
-# Benchmark all installed models
-benchmark_models(
-    prompt="Explain machine learning",
-    use_installed=True,
-    output_file="all_models.csv"
-)
-```
-
-## Important Considerations
-
-* **Model Names:** Check the [Ollama model library](https://ollama.com/library) for available models
-* **Prompt Engineering:** The quality of your prompt significantly impacts the model's output
-* **Output Handling:** Model outputs are returned via stdout and can be parsed for complex tasks
-* **Error Handling:** The scripts include error handling for common issues like missing models or network problems
+- **Model Names**: Check [Ollama Library](https://ollama.com/library) for available models
+- **Prompt Quality**: Better prompts lead to better outputs
+- **Error Handling**: Scripts handle common issues like missing models
 
 ## Resources
 
-* **Ollama Documentation:** [https://ollama.com/docs/](https://ollama.com/docs/)
-* **Ollama GitHub Repository:** [https://github.com/ollama/ollama](https://github.com/ollama/ollama)
-* **Ollama Model Library:** [https://ollama.com/library](https://ollama.com/library)
+- [Ollama Documentation](https://ollama.com/docs/)
+- [Ollama GitHub](https://github.com/ollama/ollama)
+- [Ollama Model Library](https://ollama.com/library)
 
 ## License
 
-This project is open source and available under the MIT License.
+MIT License - See LICENSE file for details
 
 ## Contributing
 
-Contributions are welcome! Feel free to submit issues or pull requests.
+Contributions welcome! Feel free to submit issues or pull requests.

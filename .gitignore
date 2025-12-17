@@ -14,6 +14,11 @@ __pycache__/
 *.pyo
 *.pyd
 
+# Python packaging
+*.egg-info/
+dist/
+build/
+
 # IDE
 .vscode/
 .idea/

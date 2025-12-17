@@ -3,21 +3,21 @@ import threading
 import time
 import psutil
 import requests
-from typing import Tuple, Dict
+from typing import Tuple, Dict, Optional, List, Any
 from datetime import datetime, timedelta
 
 
 class ResourceMonitor:
   """Monitors CPU and memory usage of a process in a background thread."""
 
-  def __init__(self, pid, interval=0.5):
+  def __init__(self, pid: int, interval: float = 0.5) -> None:
     self.pid = pid
     self.interval = interval
     self.running = False
-    self.cpu_samples = []
-    self.memory_samples = []
+    self.cpu_samples: List[float] = []
+    self.memory_samples: List[float] = []
 
-  def monitor(self):
+  def monitor(self) -> None:
     """Run in background thread to collect samples."""
     try:
       process = psutil.Process(self.pid)
@@ -37,11 +37,11 @@ class ResourceMonitor:
     except Exception:
       pass  # Log but don't crash
 
-  def stop(self):
+  def stop(self) -> None:
     """Stop monitoring."""
     self.running = False
 
-  def get_statistics(self):
+  def get_statistics(self) -> Dict[str, Optional[float]]:
     """Calculate average and peak values."""
     if not self.cpu_samples:
       return {
@@ -59,7 +59,7 @@ class ResourceMonitor:
     }
 
 
-def get_ollama_process():
+def get_ollama_process() -> Optional[psutil.Process]:
   """Get the Ollama server process object.
 
   Returns:
@@ -79,7 +79,7 @@ def get_ollama_process():
     return None
 
 
-def get_ollama_server_metrics():
+def get_ollama_server_metrics() -> Optional[Dict[str, Any]]:
   """Get real-time metrics for the running Ollama server.
 
   Returns:
@@ -104,7 +104,7 @@ def get_ollama_server_metrics():
     return None
 
 
-def is_ollama_server_running(host='127.0.0.1', port=11434, timeout=2):
+def is_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeout: int = 2) -> bool:
   """Check if Ollama server is running by attempting to connect.
 
   Args:
@@ -127,7 +127,7 @@ def is_ollama_server_running(host='127.0.0.1', port=11434, timeout=2):
     return False
 
 
-def start_ollama_server(detach=True):
+def start_ollama_server(detach: bool = True) -> Optional[subprocess.Popen]:
   """Start Ollama server in a background process.
 
   Args:
@@ -156,7 +156,7 @@ def start_ollama_server(detach=True):
     return None
 
 
-def ensure_ollama_server_running(host='127.0.0.1', port=11434):
+def ensure_ollama_server_running(host: str = '127.0.0.1', port: int = 11434) -> None:
   """Check if Ollama is running, and start it if not.
 
   Args:
@@ -171,7 +171,7 @@ def ensure_ollama_server_running(host='127.0.0.1', port=11434):
     print("Ollama server is already running.")
 
 
-def stop_ollama_server():
+def stop_ollama_server() -> None:
   """Stop the Ollama server gracefully."""
   try:
     subprocess.run(['ollama', 'kill'], check=False, capture_output=True)
@@ -180,7 +180,7 @@ def stop_ollama_server():
     print(f"Error stopping Ollama server: {e}")
 
 
-def stop_ollama_server_after(minutes):
+def stop_ollama_server_after(minutes: float) -> None:
   """Stop the Ollama server after a specified number of minutes.
 
   Runs in a background thread, so it doesn't block your code.
@@ -188,7 +188,7 @@ def stop_ollama_server_after(minutes):
   Args:
     minutes: Number of minutes to wait before stopping the server
   """
-  def delayed_stop():
+  def delayed_stop() -> None:
     time.sleep(minutes * 60)
     stop_ollama_server()
 
@@ -197,7 +197,7 @@ def stop_ollama_server_after(minutes):
   print(f"Ollama server will stop in {minutes} minute(s).")
 
 
-def stop_ollama_model(model_name):
+def stop_ollama_model(model_name: str) -> None:
   """Stop a running Ollama model.
 
   Args:
@@ -210,7 +210,7 @@ def stop_ollama_model(model_name):
     print(f"Error stopping model '{model_name}': {e}")
 
 
-def stop_ollama_model_after(model_name, minutes):
+def stop_ollama_model_after(model_name: str, minutes: float) -> None:
   """Stop an Ollama model after a specified number of minutes.
 
   Runs in a background thread, so it doesn't block your code.
@@ -219,7 +219,7 @@ def stop_ollama_model_after(model_name, minutes):
     model_name: Name of the model to stop
     minutes: Number of minutes to wait before stopping the model
   """
-  def delayed_stop():
+  def delayed_stop() -> None:
     time.sleep(minutes * 60)
     stop_ollama_model(model_name)
 
@@ -228,7 +228,7 @@ def stop_ollama_model_after(model_name, minutes):
   print(f"Model '{model_name}' will stop in {minutes} minute(s).")
 
 
-def is_model_running(model_name, host='127.0.0.1', port=11434):
+def is_model_running(model_name: str, host: str = '127.0.0.1', port: int = 11434) -> bool:
   """Check if a specific model is currently running.
 
   Args:
@@ -253,7 +253,7 @@ def is_model_running(model_name, host='127.0.0.1', port=11434):
     return False
 
 
-def send_prompt_to_running_model(model_name, prompt, host='127.0.0.1', port=11434):
+def send_prompt_to_running_model(model_name: str, prompt: str, host: str = '127.0.0.1', port: int = 11434) -> str:
   """Send a prompt to a running Ollama model via HTTP API.
 
   Args:
@@ -282,7 +282,7 @@ def send_prompt_to_running_model(model_name, prompt, host='127.0.0.1', port=1143
     raise Exception(f"Error sending prompt to model: {e}")
 
 
-def run_ollama_smart(model_name, prompt, return_output=False):
+def run_ollama_smart(model_name: str, prompt: str, return_output: bool = False) -> Optional[str]:
   """Run a prompt on a model, using the API if model is running, otherwise use CLI.
 
   Args:
@@ -319,32 +319,32 @@ def run_ollama_smart(model_name, prompt, return_output=False):
 class InactivityMonitor:
   """Monitors inactivity and stops a model after n minutes of no interaction."""
 
-  def __init__(self, model_name, inactivity_minutes):
+  def __init__(self, model_name: str, inactivity_minutes: float) -> None:
     self.model_name = model_name
     self.inactivity_minutes = inactivity_minutes
     self.last_interaction = datetime.now()
     self.monitoring = False
-    self.monitor_thread = None
+    self.monitor_thread: Optional[threading.Thread] = None
 
-  def record_interaction(self):
+  def record_interaction(self) -> None:
     """Update the last interaction time."""
     self.last_interaction = datetime.now()
 
-  def start_monitoring(self):
+  def start_monitoring(self) -> None:
     """Start monitoring for inactivity in a background thread."""
     self.monitoring = True
     self.monitor_thread = threading.Thread(target=self._monitor_inactivity, daemon=True)
     self.monitor_thread.start()
     print(f"Inactivity monitor started for model '{self.model_name}' ({self.inactivity_minutes} minute(s)).")
 
-  def stop_monitoring(self):
+  def stop_monitoring(self) -> None:
     """Stop monitoring for inactivity."""
     self.monitoring = False
     if self.monitor_thread:
       self.monitor_thread.join(timeout=1)
     print(f"Inactivity monitor stopped for model '{self.model_name}'.")
 
-  def _monitor_inactivity(self):
+  def _monitor_inactivity(self) -> None:
     """Run in background thread to check for inactivity."""
     while self.monitoring:
       elapsed = datetime.now() - self.last_interaction
@@ -362,20 +362,63 @@ class InactivityMonitor:
 class ChatSession:
   """Manages a conversation session with an Ollama model."""
 
-  def __init__(self, model_name, host='127.0.0.1', port=11434):
+  def __init__(self, model_name: str, host: str = '127.0.0.1', port: int = 11434,
+               session_name: Optional[str] = None, session_manager: Optional[Any] = None) -> None:
     """Initialize chat session.
 
     Args:
       model_name: Name of the model to chat with
       host: Ollama server host (default: localhost)
       port: Ollama server port (default: 11434)
+      session_name: Optional session name for persistence
+      session_manager: Optional SessionManager instance for persistence
     """
     self.model_name = model_name
     self.host = host
     self.port = port
-    self.messages = []
+    self.session_name = session_name
+    self.session_manager = session_manager
+    self.messages: List[Dict[str, str]] = []
+    self.created_at: Optional[str] = None
 
-  def send_message(self, user_message):
+    # Load existing session if session_name and session_manager provided
+    if self.session_name and self.session_manager:
+      self._load_session()
+
+  def _load_session(self) -> None:
+    """Load session from storage if it exists."""
+    if not self.session_manager or not self.session_name:
+      return
+
+    session_data = self.session_manager.load_session(self.session_name)
+    if session_data:
+      self.messages = session_data.get('messages', [])
+      self.created_at = session_data.get('created_at')
+      # Restore system prompt if it exists
+      system_messages = [m for m in self.messages if m.get('role') == 'system']
+      if not system_messages and session_data.get('system_prompt'):
+        self.messages.insert(0, {'role': 'system', 'content': session_data['system_prompt']})
+
+  def _save_session(self) -> None:
+    """Save session to storage."""
+    if not self.session_manager or not self.session_name:
+      return
+
+    # Extract system prompt if present
+    system_prompt = None
+    system_messages = [m for m in self.messages if m.get('role') == 'system']
+    if system_messages:
+      system_prompt = system_messages[0].get('content')
+
+    self.session_manager.save_session(
+      session_name=self.session_name,
+      model=self.model_name,
+      messages=self.messages,
+      system_prompt=system_prompt,
+      created_at=self.created_at
+    )
+
+  def send_message(self, user_message: str) -> str:
     """Send a message and get response.
 
     Args:
@@ -393,13 +436,18 @@ class ChatSession:
     # Add assistant response to history
     self.messages.append({'role': 'assistant', 'content': response})
 
+    # Save session after each message if persistence is enabled
+    self._save_session()
+
     return response
 
-  def reset(self):
+  def reset(self) -> None:
     """Clear conversation history."""
     self.messages = []
+    self.created_at = None
+    self._save_session()
 
-  def get_history(self):
+  def get_history(self) -> List[Dict[str, str]]:
     """Get conversation history.
 
     Returns:
@@ -407,7 +455,7 @@ class ChatSession:
     """
     return self.messages.copy()
 
-  def set_system_prompt(self, system_prompt):
+  def set_system_prompt(self, system_prompt: str) -> None:
     """Set or update system prompt.
 
     Args:
@@ -419,8 +467,11 @@ class ChatSession:
     # Add new system message at the beginning
     self.messages.insert(0, {'role': 'system', 'content': system_prompt})
 
+    # Save session after updating system prompt
+    self._save_session()
 
-def send_chat_message(model_name, messages, host='127.0.0.1', port=11434, stream=False):
+
+def send_chat_message(model_name: str, messages: List[Dict[str, str]], host: str = '127.0.0.1', port: int = 11434, stream: bool = False) -> str:
   """Send a chat message to Ollama using /api/chat endpoint.
 
   Args:
@@ -451,7 +502,7 @@ def send_chat_message(model_name, messages, host='127.0.0.1', port=11434, stream
     raise Exception(f"Error sending chat message to model: {e}")
 
 
-def run_ollama(model_name, prompt, return_output=False):
+def run_ollama(model_name: str, prompt: str, return_output: bool = False) -> Optional[str]:
   """Runs an Ollama model and returns the output."""
   try:
     result = subprocess.run(['ollama', 'run', model_name],
@@ -467,7 +518,7 @@ def run_ollama(model_name, prompt, return_output=False):
       print(f"Error running Ollama: {e}")
 
 
-def run_ollama_with_monitoring(model_name, prompt) -> Tuple[str, Dict]:
+def run_ollama_with_monitoring(model_name: str, prompt: str) -> Tuple[str, Dict[str, Optional[float]]]:
   """Runs an Ollama model with resource monitoring.
 
   Args:
@@ -510,7 +561,7 @@ def run_ollama_with_monitoring(model_name, prompt) -> Tuple[str, Dict]:
     raise
 
 
-def run_ollama_chat_smart(chat_session, user_message):
+def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
   """Send chat message using API if server is running.
 
   Args:
@@ -533,7 +584,7 @@ def run_ollama_chat_smart(chat_session, user_message):
     raise
 
 
-def run_chat_with_monitoring(chat_session, user_message) -> Tuple[str, Dict]:
+def run_chat_with_monitoring(chat_session: ChatSession, user_message: str) -> Tuple[str, Optional[Dict[str, Optional[float]]]]:
   """Send chat message with resource monitoring.
 
   Args:

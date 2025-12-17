@@ -1,7 +1,6 @@
 import subprocess
 from typing import List, Dict
 
-
 def get_installed_models() -> List[str]:
     """Get the list of locally installed Ollama models.
 
@@ -36,7 +35,6 @@ def get_installed_models() -> List[str]:
             e.cmd,
             stderr=f"Error running 'ollama list': {e.stderr}"
         )
-
 
 def get_models_grouped_by_base_name() -> Dict[str, List[str]]:
     """Get locally installed Ollama models grouped by their base name.

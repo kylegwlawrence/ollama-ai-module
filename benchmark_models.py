@@ -3,14 +3,14 @@ import os
 import time
 import threading
 import argparse
+import subprocess
 from datetime import datetime
-from typing import List, Dict, Optional
-from src.run_ollama import run_ollama_smart, run_ollama_with_monitoring, ensure_ollama_server_running, get_ollama_server_metrics
-from src.select_model import get_installed_models
+from typing import List, Dict, Optional, Any
+from src.run_ollama import run_ollama_smart, ensure_ollama_server_running, get_ollama_server_metrics
+from src.group_models import get_installed_models
 from src.install_ollama_model import check_and_install_model
 
-
-def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, any]:
+def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, Any]:
     """
     Runs an Ollama model with a prompt and measures response time and resource usage.
 
@@ -25,7 +25,7 @@ def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, any]:
     cpu_samples = []
     memory_samples = []
 
-    def monitor_resources():
+    def monitor_resources() -> None:
         """Background thread to collect resource metrics."""
         while monitoring:
             metrics = get_ollama_server_metrics()
@@ -91,8 +91,7 @@ def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, any]:
             'timestamp': timestamp
         }
 
-
-def benchmark_models(models: Optional[List[str]] = None, prompt: str = None, output_file: str = None, use_installed: bool = False):
+def benchmark_models(models: Optional[List[str]] = None, prompt: Optional[str] = None, output_file: Optional[str] = None, use_installed: bool = False) -> None:
     """
     Benchmarks multiple models with the same prompt and saves results to CSV.
 
@@ -130,6 +129,13 @@ def benchmark_models(models: Optional[List[str]] = None, prompt: str = None, out
         result = run_ollama_benchmark(model, prompt)
         results.append(result)
 
+        # Stop the model to free resources
+        try:
+            subprocess.run(['ollama', 'stop', model], check=False, capture_output=True)
+            print(f"Model '{model}' stopped successfully")
+        except Exception:
+            pass  # Ignore errors if model is already stopped
+
     # Write results to CSV
     with open(output_file, 'w', newline='', encoding='utf-8') as csvfile:
         fieldnames = [
@@ -151,8 +157,7 @@ def benchmark_models(models: Optional[List[str]] = None, prompt: str = None, out
 
     print(f"Results saved to: {output_file}")
 
-
-def main():
+def main() -> None:
     parser = argparse.ArgumentParser(description='Benchmark AI models with the same prompt')
     parser.add_argument('prompt', type=str, help='The prompt to test all models with')
     parser.add_argument('-m', '--models', nargs='+', help='List of model names (if not provided, uses all installed models)')
@@ -166,7 +171,6 @@ def main():
     else:
         print("Using all installed models")
         benchmark_models(prompt=args.prompt, use_installed=True)
-
 
 if __name__ == "__main__":
     main()

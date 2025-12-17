@@ -15,7 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent))
 from src.run_ollama import ChatSession, ensure_ollama_server_running
 
 
-def main():
+def main() -> None:
     """Run a conversation loop with predefined prompts."""
     print("Starting Ollama conversation loop example...\n")
 
