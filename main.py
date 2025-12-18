@@ -2,7 +2,7 @@ import argparse
 from src.models import check_and_install_model
 from src.inactivity_monitor import ModelInactivityMonitor
 from src.sessions import ChatSession
-from src.server import test_ollama_server_running
+from src.server import OllamaServer
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -134,7 +134,8 @@ def main() -> None:
 
     # Ensure Ollama server is running
     if not args.skip_server_check:
-        test_ollama_server_running()
+        server = OllamaServer()
+        server.test_running()
 
     # Use provided model
     selected_model = args.model

@@ -4,7 +4,7 @@ import requests
 from typing import List, Dict, Optional, Tuple, Any
 
 from resource_monitor import ResourceMonitor
-from server import test_ollama_server_running, get_ollama_process
+from server import OllamaServer
 
 
 # Model state management functions
@@ -116,7 +116,8 @@ def run_ollama_smart(model_name: str, prompt: str, return_output: bool = False) 
     RuntimeError: If Ollama server is not running
   """
   # Check that the server is running
-  test_ollama_server_running()
+  server = OllamaServer()
+  server.test_running()
 
   # Check if model is already running
   if is_model_running(model_name):
@@ -286,7 +287,8 @@ def check_and_install_model(model_name: str) -> bool:
   Checks if the Ollama model is installed locally and pulls it if not.
   """
   # Ensure the Ollama server is running before attempting to pull models
-  test_ollama_server_running()
+  server = OllamaServer()
+  server.test_running()
 
   if is_model_installed(model_name):
     return True

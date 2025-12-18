@@ -3,7 +3,7 @@ from typing import Tuple, Dict, Optional, Any
 
 from resource_monitor import ResourceMonitor
 from sessions import ChatSession
-from server import test_ollama_server_running, get_ollama_process
+from server import OllamaServer
 
 def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
   """Send chat message using API if server is running.
@@ -19,7 +19,8 @@ def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
     RuntimeError: If Ollama server is not running
   """
   # Check that the server is running
-  test_ollama_server_running()
+  server = OllamaServer()
+  server.test_running()
 
   # Send message via chat session (which maintains context)
   response = chat_session.send_message(user_message)
@@ -41,10 +42,11 @@ def run_chat_with_monitoring(chat_session: ChatSession, user_message: str) -> Tu
     RuntimeError: If Ollama server is not running
   """
   # Check that the server is running
-  test_ollama_server_running()
+  server = OllamaServer()
+  server.test_running()
 
   # Get Ollama server process for monitoring
-  proc = get_ollama_process()
+  proc = OllamaServer.get_process()
   if not proc:
     # If can't find process, just send message without monitoring
     print("Cannot find ollama PID. Sending chat without monitoring")
