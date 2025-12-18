@@ -91,13 +91,13 @@ def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, Any]:
             'timestamp': timestamp
         }
 
-def benchmark_models(models: Optional[List[str]] = None, prompt: Optional[str] = None, output_file: Optional[str] = None, use_installed: bool = False) -> None:
+def benchmark_models(models: Optional[List[str]] = None, prompts: Optional[List[str]] = None, output_file: Optional[str] = None, use_installed: bool = False) -> None:
     """
-    Benchmarks multiple models with the same prompt and saves results to CSV.
+    Benchmarks multiple models with multiple prompts and saves results to CSV.
 
     Args:
         models: List of model names to benchmark (optional if use_installed=True)
-        prompt: The prompt to test all models with
+        prompts: List of prompts to test all models with
         output_file: Path to the output CSV file (default: generates timestamped filename)
         use_installed: If True, uses all installed models instead of custom list
     """
@@ -126,10 +126,11 @@ def benchmark_models(models: Optional[List[str]] = None, prompt: Optional[str] =
     # Run benchmarking
     results = []
     for model in models_to_benchmark:
-        result = run_ollama_benchmark(model, prompt)
-        results.append(result)
+        for prompt in prompts:
+            result = run_ollama_benchmark(model, prompt)
+            results.append(result)
 
-        # Stop the model to free resources
+        # Stop the model to free resources after all prompts
         try:
             subprocess.run(['ollama', 'stop', model], check=False, capture_output=True)
             print(f"Model '{model}' stopped successfully")
@@ -158,8 +159,8 @@ def benchmark_models(models: Optional[List[str]] = None, prompt: Optional[str] =
     print(f"Results saved to: {output_file}")
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description='Benchmark AI models with the same prompt')
-    parser.add_argument('prompt', type=str, help='The prompt to test all models with')
+    parser = argparse.ArgumentParser(description='Benchmark AI models with multiple prompts')
+    parser.add_argument('prompts', type=str, nargs='+', help='One or more prompts to test all models with')
     parser.add_argument('-m', '--models', nargs='+', help='List of model names (if not provided, uses all installed models)')
 
     args = parser.parse_args()
@@ -167,10 +168,10 @@ def main() -> None:
     # Determine models to use
     if args.models:
         print(f"Using specified models: {', '.join(args.models)}")
-        benchmark_models(models=args.models, prompt=args.prompt)
+        benchmark_models(models=args.models, prompts=args.prompts)
     else:
         print("Using all installed models")
-        benchmark_models(prompt=args.prompt, use_installed=True)
+        benchmark_models(prompts=args.prompts, use_installed=True)
 
 if __name__ == "__main__":
     main()
