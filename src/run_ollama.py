@@ -6,60 +6,10 @@ import requests
 from typing import Tuple, Dict, Optional, List, Any
 from datetime import datetime, timedelta
 
-
-class ResourceMonitor:
-  """Monitors CPU and memory usage of a process in a background thread."""
-
-  def __init__(self, pid: int, interval: float = 0.5) -> None:
-    self.pid = pid
-    self.interval = interval
-    self.running = False
-    self.cpu_samples: List[float] = []
-    self.memory_samples: List[float] = []
-
-  def monitor(self) -> None:
-    """Run in background thread to collect samples."""
-    try:
-      process = psutil.Process(self.pid)
-      self.running = True
-
-      while self.running:
-        cpu_percent = process.cpu_percent(interval=None)
-        memory_mb = process.memory_info().rss / (1024 * 1024)
-
-        self.cpu_samples.append(cpu_percent)
-        self.memory_samples.append(memory_mb)
-
-        time.sleep(self.interval)
-
-    except psutil.NoSuchProcess:
-      pass  # Process ended normally
-    except Exception:
-      pass  # Log but don't crash
-
-  def stop(self) -> None:
-    """Stop monitoring."""
-    self.running = False
-
-  def get_statistics(self) -> Dict[str, Optional[float]]:
-    """Calculate average and peak values."""
-    if not self.cpu_samples:
-      return {
-        'cpu_avg_percent': None,
-        'cpu_peak_percent': None,
-        'memory_avg_mb': None,
-        'memory_peak_mb': None
-      }
-
-    return {
-      'cpu_avg_percent': round(sum(self.cpu_samples) / len(self.cpu_samples), 2),
-      'cpu_peak_percent': round(max(self.cpu_samples), 2),
-      'memory_avg_mb': round(sum(self.memory_samples) / len(self.memory_samples), 2),
-      'memory_peak_mb': round(max(self.memory_samples), 2)
-    }
+from resource_monitor import ResourceMonitor
 
 
-def get_ollama_process() -> Optional[psutil.Process]:
+def _get_ollama_process() -> Optional[psutil.Process]:
   """Get the Ollama server process object.
 
   Returns:
@@ -79,32 +29,7 @@ def get_ollama_process() -> Optional[psutil.Process]:
     return None
 
 
-def get_ollama_server_metrics() -> Optional[Dict[str, Any]]:
-  """Get real-time metrics for the running Ollama server.
-
-  Returns:
-    Dictionary with CPU usage, memory usage, and timestamp
-  """
-  try:
-    proc = get_ollama_process()
-    if not proc:
-      return None
-
-    cpu_percent = proc.cpu_percent(interval=None)
-    memory_info = proc.memory_info()
-    memory_mb = memory_info.rss / (1024 * 1024)
-
-    return {
-      'timestamp': datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
-      'cpu_percent': round(cpu_percent, 2),
-      'memory_mb': round(memory_mb, 2),
-      'memory_percent': round(proc.memory_percent(), 2)
-    }
-  except Exception:
-    return None
-
-
-def is_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeout: int = 2) -> bool:
+def _is_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeout: int = 2) -> bool:
   """Check if Ollama server is running by attempting to connect.
 
   Args:
@@ -127,74 +52,21 @@ def is_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeout
     return False
 
 
-def start_ollama_server(detach: bool = True) -> Optional[subprocess.Popen]:
-  """Start Ollama server in a background process.
-
-  Args:
-    detach: If True, start in background. If False, return the process object.
-
-  Returns:
-    subprocess.Popen object if detach=False, None otherwise
-  """
-  try:
-    if detach:
-      subprocess.Popen(
-        ['ollama', 'serve'],
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-        start_new_session=True
-      )
-      time.sleep(2)  # Give server time to start
-    else:
-      return subprocess.Popen(
-        ['ollama', 'serve'],
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE
-      )
-  except Exception as e:
-    print(f"Error starting Ollama server: {e}")
-    return None
-
-
-def ensure_ollama_server_running(host: str = '127.0.0.1', port: int = 11434) -> None:
-  """Check if Ollama is running, and start it if not.
+def _check_ollama_server_running(host: str = '127.0.0.1', port: int = 11434) -> None:
+  """Check if Ollama server is running, raise error if not.
 
   Args:
     host: Ollama server host
     port: Ollama server port
+
+  Raises:
+    RuntimeError: If Ollama server is not running
   """
-  if not is_ollama_server_running(host, port):
-    print("Ollama server not running. Starting it...")
-    start_ollama_server(detach=True)
-    print("Ollama server started.")
-  else:
-    print("Ollama server is already running.")
-
-
-def stop_ollama_server() -> None:
-  """Stop the Ollama server gracefully."""
-  try:
-    subprocess.run(['ollama', 'kill'], check=False, capture_output=True)
-    print("Ollama server stopped.")
-  except Exception as e:
-    print(f"Error stopping Ollama server: {e}")
-
-
-def stop_ollama_server_after(minutes: float) -> None:
-  """Stop the Ollama server after a specified number of minutes.
-
-  Runs in a background thread, so it doesn't block your code.
-
-  Args:
-    minutes: Number of minutes to wait before stopping the server
-  """
-  def delayed_stop() -> None:
-    time.sleep(minutes * 60)
-    stop_ollama_server()
-
-  stop_thread = threading.Thread(target=delayed_stop, daemon=True)
-  stop_thread.start()
-  print(f"Ollama server will stop in {minutes} minute(s).")
+  if not _is_ollama_server_running(host, port):
+    raise RuntimeError(
+      f"Ollama server is not running on {host}:{port}. "
+      "Please start the Ollama server manually before running this function."
+    )
 
 
 def stop_ollama_model(model_name: str) -> None:
@@ -292,28 +164,25 @@ def run_ollama_smart(model_name: str, prompt: str, return_output: bool = False) 
 
   Returns:
     The model's response if return_output=True, None otherwise
+
+  Raises:
+    RuntimeError: If Ollama server is not running
   """
-  try:
-    # First ensure the server is running
-    ensure_ollama_server_running()
+  # Check that the server is running
+  _check_ollama_server_running()
 
-    # Check if model is already running
-    if is_model_running(model_name):
-      print(f"Model '{model_name}' is already running. Sending prompt via API...")
-      response = send_prompt_to_running_model(model_name, prompt)
-    else:
-      print(f"Model '{model_name}' not running. Starting via CLI...")
-      response = run_ollama(model_name, prompt, return_output=True)
+  # Check if model is already running
+  if is_model_running(model_name):
+    print(f"Model '{model_name}' is already running. Sending prompt via API...")
+    response = send_prompt_to_running_model(model_name, prompt)
+  else:
+    print(f"Model '{model_name}' not running. Starting via CLI...")
+    response = _run_ollama(model_name, prompt, return_output=True)
 
-    if return_output:
-      return response
-    else:
-      print(response)
-  except Exception as e:
-    if return_output:
-      raise
-    else:
-      print(f"Error: {e}")
+  if return_output:
+    return response
+  else:
+    print(response)
 
 
 class InactivityMonitor:
@@ -502,7 +371,7 @@ def send_chat_message(model_name: str, messages: List[Dict[str, str]], host: str
     raise Exception(f"Error sending chat message to model: {e}")
 
 
-def run_ollama(model_name: str, prompt: str, return_output: bool = False) -> Optional[str]:
+def _run_ollama(model_name: str, prompt: str, return_output: bool = False) -> Optional[str]:
   """Runs an Ollama model and returns the output."""
   try:
     result = subprocess.run(['ollama', 'run', model_name],
@@ -570,18 +439,17 @@ def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
 
   Returns:
     Assistant's response text
+
+  Raises:
+    RuntimeError: If Ollama server is not running
   """
-  try:
-    # Ensure the server is running
-    ensure_ollama_server_running()
+  # Check that the server is running
+  _check_ollama_server_running()
 
-    # Send message via chat session (which maintains context)
-    response = chat_session.send_message(user_message)
+  # Send message via chat session (which maintains context)
+  response = chat_session.send_message(user_message)
 
-    return response
-  except Exception as e:
-    print(f"Error in chat: {e}")
-    raise
+  return response
 
 
 def run_chat_with_monitoring(chat_session: ChatSession, user_message: str) -> Tuple[str, Optional[Dict[str, Optional[float]]]]:
@@ -593,33 +461,31 @@ def run_chat_with_monitoring(chat_session: ChatSession, user_message: str) -> Tu
 
   Returns:
     Tuple of (response text, resource statistics dict)
+
+  Raises:
+    RuntimeError: If Ollama server is not running
   """
-  try:
-    # Ensure the server is running
-    ensure_ollama_server_running()
+  # Check that the server is running
+  _check_ollama_server_running()
 
-    # Get Ollama server process for monitoring
-    proc = get_ollama_process()
-    if not proc:
-      # If can't find process, just send message without monitoring
-      response = chat_session.send_message(user_message)
-      return response, None
-
-    # Start monitoring thread
-    resource_monitor = ResourceMonitor(proc.pid, interval=0.5)
-    monitor_thread = threading.Thread(target=resource_monitor.monitor)
-    monitor_thread.start()
-
-    # Send message and get response
+  # Get Ollama server process for monitoring
+  proc = _get_ollama_process()
+  if not proc:
+    # If can't find process, just send message without monitoring
     response = chat_session.send_message(user_message)
+    return response, None
 
-    # Stop monitoring and collect stats
-    resource_monitor.stop()
-    monitor_thread.join()
+  # Start monitoring thread
+  resource_monitor = ResourceMonitor(proc.pid, interval=0.5)
+  monitor_thread = threading.Thread(target=resource_monitor.monitor)
+  monitor_thread.start()
 
-    stats = resource_monitor.get_statistics()
-    return response, stats
+  # Send message and get response
+  response = chat_session.send_message(user_message)
 
-  except Exception as e:
-    print(f"Error in monitored chat: {e}")
-    raise
+  # Stop monitoring and collect stats
+  resource_monitor.stop()
+  monitor_thread.join()
+
+  stats = resource_monitor.get_statistics()
+  return response, stats
