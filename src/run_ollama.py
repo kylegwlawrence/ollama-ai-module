@@ -1,16 +1,9 @@
-import subprocess
 import threading
-import time
-from typing import Tuple, Dict, Optional, List, Any
+from typing import Tuple, Dict, Optional, Any
 
 from resource_monitor import ResourceMonitor
-from inactivity_monitor import InactivityMonitor
-from chat_session import ChatSession
+from sessions import ChatSession
 from server import test_ollama_server_running, get_ollama_process
-from models import (
-  is_model_running, stop_model, run_ollama_cli, send_prompt_to_running_model,
-  run_ollama_smart, send_chat_message, run_ollama_with_monitoring
-)
 
 def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
   """Send chat message using API if server is running.

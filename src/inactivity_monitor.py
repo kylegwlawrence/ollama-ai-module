@@ -6,7 +6,7 @@ from typing import Optional
 from models import stop_model
 
 
-class InactivityMonitor:
+class ModelInactivityMonitor:
   """Monitors inactivity and stops a model after n minutes of no interaction."""
 
   def __init__(self, model_name: str, inactivity_minutes: float) -> None:

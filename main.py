@@ -1,7 +1,8 @@
 import argparse
 from src.models import check_and_install_model
-from src.run_ollama import run_ollama_smart, ensure_ollama_server_running, InactivityMonitor, ChatSession
-from src.session_manager import SessionManager
+from src.inactivity_monitor import ModelInactivityMonitor
+from src.sessions import ChatSession
+from src.server import test_ollama_server_running
 
 def main() -> None:
     parser = argparse.ArgumentParser(
@@ -45,18 +46,6 @@ def main() -> None:
         help='Disable inactivity monitoring'
     )
 
-    # Multi-prompt mode
-    parser.add_argument(
-        '--multi-prompt',
-        action='store_true',
-        help='Run in multi-prompt mode (process multiple prompts sequentially)'
-    )
-    parser.add_argument(
-        '--prompts',
-        nargs='+',
-        help='List of prompts for multi-prompt mode'
-    )
-
     # Conversation mode
     parser.add_argument(
         '--conversation',
@@ -98,12 +87,9 @@ def main() -> None:
 
     args = parser.parse_args()
 
-    # Initialize session manager
-    session_manager = SessionManager()
-
     # Handle session management commands first
     if args.list_sessions:
-        sessions = session_manager.list_sessions()
+        sessions = ChatSession.list_sessions()
         if not sessions:
             print("No saved sessions found.")
         else:
@@ -115,7 +101,7 @@ def main() -> None:
         return
 
     if args.show_session:
-        info = session_manager.get_session_info(args.show_session)
+        info = ChatSession.get_session_info(args.show_session)
         if not info:
             print(f"Session '{args.show_session}' not found.")
             return
@@ -140,7 +126,7 @@ def main() -> None:
         return
 
     if args.clear_session:
-        if session_manager.delete_session(args.clear_session):
+        if ChatSession.delete_session(args.clear_session):
             print(f"Session '{args.clear_session}' deleted.")
         else:
             print(f"Session '{args.clear_session}' not found.")
@@ -148,7 +134,7 @@ def main() -> None:
 
     # Ensure Ollama server is running
     if not args.skip_server_check:
-        ensure_ollama_server_running()
+        test_ollama_server_running()
 
     # Use provided model
     selected_model = args.model
@@ -160,7 +146,7 @@ def main() -> None:
     # Start inactivity monitor if not disabled
     monitor = None
     if not args.no_inactivity_monitor and args.timeout > 0:
-        monitor = InactivityMonitor(selected_model, args.timeout)
+        monitor = ModelInactivityMonitor(selected_model, args.timeout)
         monitor.start_monitoring()
 
     try:
@@ -173,19 +159,18 @@ def main() -> None:
             session_name = args.session
             if session_name and args.new_session:
                 # Clear existing session if --new-session flag is set
-                if session_manager.session_exists(session_name):
-                    session_manager.delete_session(session_name)
+                if ChatSession.session_exists(session_name):
+                    ChatSession.delete_session(session_name)
                     print(f"Cleared existing session '{session_name}'")
 
             # Create chat session with optional persistence
             chat = ChatSession(
                 model_name=selected_model,
-                session_name=session_name,
-                session_manager=session_manager if session_name else None
+                session_name=session_name
             )
 
             # Check if we're continuing an existing session
-            is_continuing = session_name and session_manager.session_exists(session_name) and not args.new_session
+            is_continuing = session_name and ChatSession.session_exists(session_name) and not args.new_session
 
             if is_continuing:
                 history = chat.get_history()
@@ -220,20 +205,6 @@ def main() -> None:
                 # Just show the session info if no new prompts
                 print(f"\nSession '{session_name}' loaded. Use --prompts to add messages.")
 
-        elif args.multi_prompt:
-            # Multi-prompt mode: programmatic continuous prompting (no context)
-            if not args.prompts:
-                raise ValueError("Multi-prompt mode requires --prompts argument with a list of prompts")
-
-            print(f"Running {len(args.prompts)} prompts programmatically...\n")
-            for i, user_prompt in enumerate(args.prompts, 1):
-                print(f"[Prompt {i}/{len(args.prompts)}]: {user_prompt}")
-                print("-" * 60)
-                if user_prompt.strip():
-                    if monitor:
-                        monitor.record_interaction()
-                    run_ollama_smart(selected_model, user_prompt)
-                    print()  # Add spacing between responses
         else:
             # Single prompt mode
             if args.prompt:
