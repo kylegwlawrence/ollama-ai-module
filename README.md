@@ -80,39 +80,15 @@ python benchmark_models.py "What is Python?" -m llama2 -o results.csv
 
 **Output:** CSV file with model name, response time, CPU/memory usage, response text, and timestamp.
 
-### Python Code Examples
+### Python API Examples
 
-**Simple conversation:**
-```python
-from src.run_ollama import ChatSession, ensure_ollama_server_running
-
-ensure_ollama_server_running()
-chat = ChatSession("llama2")
-
-response1 = chat.send_message("What is Python?")
-print(response1)
-
-response2 = chat.send_message("Show me an example")  # Model remembers context
-print(response2)
-```
-
-**Install and run a model:**
-```python
-from src.install_ollama_model import check_and_install_model
-from src.run_ollama import run_ollama_smart
-
-check_and_install_model("mistral")
-response = run_ollama_smart("mistral", "Hello!")
-print(response)
-```
-
-**Get installed models:**
-```python
-from src.group_models import get_installed_models
-
-models = get_installed_models()
-print(f"Installed models: {models}")
-```
+See [CHAT_API_GUIDE.md](CHAT_API_GUIDE.md) for comprehensive Python API documentation, including:
+- Chat sessions with automatic context management
+- System prompts and model behavior customization
+- Resource monitoring and tracking
+- Programmatic conversation loops
+- Advanced examples and best practices
+- Complete API reference
 
 ## Project Structure
 
@@ -130,15 +106,6 @@ hello-ollama/
 └── README.md                    # This file
 ```
 
-## Advanced Usage
-
-For advanced examples including:
-- Chat sessions with system prompts
-- Resource monitoring
-- Direct API calls
-- Programmatic benchmarking
-
-See [CHAT_API_GUIDE.md](CHAT_API_GUIDE.md)
 
 ## Benchmarking Notes
 
@@ -159,7 +126,7 @@ Resource metrics are sampled periodically. CPU percentage can exceed 100% on mul
 
 ## Resources
 
-- [Ollama Documentation](https://ollama.com/docs/)
+- [Ollama Documentation](https://docs.ollama.com)
 - [Ollama GitHub](https://github.com/ollama/ollama)
 - [Ollama Model Library](https://ollama.com/library)
 

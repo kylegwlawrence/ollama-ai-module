@@ -7,8 +7,7 @@ import subprocess
 from datetime import datetime
 from typing import List, Dict, Optional, Any
 from src.run_ollama import run_ollama_smart, ensure_ollama_server_running, get_ollama_server_metrics
-from src.group_models import get_installed_models
-from src.install_ollama_model import check_and_install_model
+from src.utils import get_installed_models, check_and_install_model
 
 def run_ollama_benchmark(model_name: str, prompt: str) -> Dict[str, Any]:
     """

@@ -6,12 +6,12 @@ The hello-ollama toolkit now supports Ollama's `/api/chat` endpoint, enabling pr
 
 ## Key Features
 
-✅ **Automatic Context Management** - The model remembers previous messages across prompts
-✅ **Simple API** - Just call `.send_message()` repeatedly
-✅ **Message History Tracking** - Inspect full conversation history anytime
-✅ **System Prompts** - Customize model behavior for your use case
-✅ **Resource Monitoring** - Track CPU/memory usage during conversations
-✅ **No New Dependencies** - Uses existing `requests` library
+- **Automatic Context Management** - The model remembers previous messages across prompts
+- **Simple API** - Just call `.send_message()` repeatedly
+- **Message History Tracking** - Inspect full conversation history anytime
+- **System Prompts** - Customize model behavior for your use case
+- **Resource Monitoring** - Track CPU/memory usage during conversations
+- **No New Dependencies** - Uses existing `requests` library
 
 ## Quick Start
 
@@ -480,12 +480,12 @@ response2 = chat.send_message("Can you show me an example?")  # Knows we're disc
 ## Summary
 
 The chat endpoint implementation provides:
-- ✅ True multi-turn conversations with context
-- ✅ Programmatic conversation loops (no terminal input needed)
-- ✅ Simple, intuitive API
-- ✅ Full history tracking and control
-- ✅ System prompt customization
-- ✅ Integration with existing features
-- ✅ No new dependencies required
+- True multi-turn conversations with context
+- Programmatic conversation loops (no terminal input needed)
+- Simple, intuitive API
+- Full history tracking and control
+- System prompt customization
+- Integration with existing features
+- No new dependencies required
 
 You can now build sophisticated conversational applications with Ollama!

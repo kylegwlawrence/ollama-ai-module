@@ -1,5 +1,5 @@
 import argparse
-from src.install_ollama_model import check_and_install_model
+from src.utils import check_and_install_model
 from src.run_ollama import run_ollama_smart, ensure_ollama_server_running, InactivityMonitor, ChatSession
 from src.session_manager import SessionManager
 

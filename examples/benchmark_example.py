@@ -1,3 +1,7 @@
+"""Example demonstrating how to use the benchmark_models function.
+
+This script benchmarks all installed models using a predefined set of prompts.
+"""
 from benchmark_models import benchmark_models
 
 if __name__ == "__main__":
