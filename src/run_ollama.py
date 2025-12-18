@@ -29,16 +29,16 @@ def _get_ollama_process() -> Optional[psutil.Process]:
     return None
 
 
-def _is_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeout: int = 2) -> bool:
-  """Check if Ollama server is running by attempting to connect.
+def _test_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeout: int = 2) -> None:
+  """Check if Ollama server is running, raise error if not.
 
   Args:
     host: Ollama server host (default: localhost)
     port: Ollama server port (default: 11434)
     timeout: Connection timeout in seconds
 
-  Returns:
-    True if Ollama is running, False otherwise
+  Raises:
+    RuntimeError: If Ollama server is not running
   """
   try:
     result = subprocess.run(
@@ -47,22 +47,12 @@ def _is_ollama_server_running(host: str = '127.0.0.1', port: int = 11434, timeou
       text=True,
       timeout=timeout
     )
-    return result.stdout.strip() == '200'
-  except Exception:
-    return False
-
-
-def _check_ollama_server_running(host: str = '127.0.0.1', port: int = 11434) -> None:
-  """Check if Ollama server is running, raise error if not.
-
-  Args:
-    host: Ollama server host
-    port: Ollama server port
-
-  Raises:
-    RuntimeError: If Ollama server is not running
-  """
-  if not _is_ollama_server_running(host, port):
+    if result.stdout.strip() != '200':
+      raise RuntimeError(
+        f"Ollama server is not running on {host}:{port}. "
+        "Please start the Ollama server manually before running this function."
+      )
+  except subprocess.SubprocessError:
     raise RuntimeError(
       f"Ollama server is not running on {host}:{port}. "
       "Please start the Ollama server manually before running this function."
@@ -169,7 +159,7 @@ def run_ollama_smart(model_name: str, prompt: str, return_output: bool = False) 
     RuntimeError: If Ollama server is not running
   """
   # Check that the server is running
-  _check_ollama_server_running()
+  _test_ollama_server_running()
 
   # Check if model is already running
   if is_model_running(model_name):
@@ -444,7 +434,7 @@ def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
     RuntimeError: If Ollama server is not running
   """
   # Check that the server is running
-  _check_ollama_server_running()
+  _test_ollama_server_running()
 
   # Send message via chat session (which maintains context)
   response = chat_session.send_message(user_message)
@@ -466,7 +456,7 @@ def run_chat_with_monitoring(chat_session: ChatSession, user_message: str) -> Tu
     RuntimeError: If Ollama server is not running
   """
   # Check that the server is running
-  _check_ollama_server_running()
+  _test_ollama_server_running()
 
   # Get Ollama server process for monitoring
   proc = _get_ollama_process()
