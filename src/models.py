@@ -1,6 +1,209 @@
 import subprocess
-from typing import List, Dict
-from src.run_ollama import ensure_ollama_server_running
+import threading
+import requests
+from typing import List, Dict, Optional, Tuple, Any
+
+from resource_monitor import ResourceMonitor
+from server import test_ollama_server_running, get_ollama_process
+
+
+# Model state management functions
+
+def is_model_running(model_name: str, host: str = '127.0.0.1', port: int = 11434) -> bool:
+  """Check if a specific model is currently running.
+
+  Args:
+    model_name: Name of the model to check
+    host: Ollama server host (default: localhost)
+    port: Ollama server port (default: 11434)
+
+  Returns:
+    True if the model is running, False otherwise
+  """
+  try:
+    url = f'http://{host}:{port}/api/tags'
+    response = requests.get(url, timeout=2)
+    if response.status_code == 200:
+      data = response.json()
+      models = data.get('models', [])
+      for model in models:
+        if model.get('name') == model_name or model_name in model.get('name', ''):
+          return True
+    return False
+  except Exception:
+    return False
+
+
+def stop_model(model_name: str) -> None:
+  """Stop a running Ollama model.
+
+  Args:
+    model_name: Name of the model to stop
+  """
+  try:
+    subprocess.run(['ollama', 'stop', model_name], check=False, capture_output=True)
+    print(f"Model '{model_name}' stopped.")
+  except Exception as e:
+    print(f"Error stopping model '{model_name}': {e}")
+
+
+def run_ollama_cli(model_name: str, prompt: str, return_output: bool = False) -> Optional[str]:
+  """Runs an Ollama model via CLI and returns the output.
+
+  Args:
+    model_name: Name of the model to run
+    prompt: The prompt to send to the model
+    return_output: If True, return the output. If False, print it.
+
+  Returns:
+    The model's output if return_output=True, None otherwise
+  """
+  try:
+    result = subprocess.run(['ollama', 'run', model_name],
+    input=prompt, capture_output=True, text=True, check=True)
+    if return_output:
+      return result.stdout
+    else:
+      print(result.stdout)
+  except subprocess.CalledProcessError as e:
+    if return_output:
+      raise
+    else:
+      print(f"Error running Ollama: {e}")
+
+
+def send_prompt_to_running_model(model_name: str, prompt: str, host: str = '127.0.0.1', port: int = 11434) -> str:
+  """Send a prompt to a running Ollama model via HTTP API.
+
+  Args:
+    model_name: Name of the model
+    prompt: The prompt to send
+    host: Ollama server host (default: localhost)
+    port: Ollama server port (default: 11434)
+
+  Returns:
+    The model's response as a string
+  """
+  try:
+    url = f'http://{host}:{port}/api/generate'
+    payload = {
+      'model': model_name,
+      'prompt': prompt,
+      'stream': False
+    }
+    response = requests.post(url, json=payload, timeout=300)
+    if response.status_code == 200:
+      data = response.json()
+      return data.get('response', '')
+    else:
+      raise Exception(f"HTTP {response.status_code}: {response.text}")
+  except Exception as e:
+    raise Exception(f"Error sending prompt to model: {e}")
+
+
+def run_ollama_smart(model_name: str, prompt: str, return_output: bool = False) -> Optional[str]:
+  """Run a prompt on a model, using the API if model is running, otherwise use CLI.
+
+  Args:
+    model_name: Name of the model
+    prompt: The prompt to send
+    return_output: If True, return the response. If False, print it.
+
+  Returns:
+    The model's response if return_output=True, None otherwise
+
+  Raises:
+    RuntimeError: If Ollama server is not running
+  """
+  # Check that the server is running
+  test_ollama_server_running()
+
+  # Check if model is already running
+  if is_model_running(model_name):
+    print(f"Model '{model_name}' is already running. Sending prompt via API...")
+    response = send_prompt_to_running_model(model_name, prompt)
+  else:
+    print(f"Model '{model_name}' not running. Starting via CLI...")
+    response = run_ollama_cli(model_name, prompt, return_output=True)
+
+  if return_output:
+    return response
+  else:
+    print(response)
+
+
+def send_chat_message(model_name: str, messages: List[Dict[str, str]], host: str = '127.0.0.1', port: int = 11434, stream: bool = False) -> str:
+  """Send a chat message to Ollama using /api/chat endpoint.
+
+  Args:
+    model_name: Name of the model
+    messages: List of message dicts with 'role' and 'content' keys
+              Example: [{'role': 'user', 'content': 'Hello'}]
+    host: Ollama server host (default: localhost)
+    port: Ollama server port (default: 11434)
+    stream: Enable streaming responses (default: False)
+
+  Returns:
+    The assistant's response as a string
+  """
+  try:
+    url = f'http://{host}:{port}/api/chat'
+    payload = {
+      'model': model_name,
+      'messages': messages,
+      'stream': stream
+    }
+    response = requests.post(url, json=payload, timeout=300)
+    if response.status_code == 200:
+      data = response.json()
+      return data.get('message', {}).get('content', '')
+    else:
+      raise Exception(f"HTTP {response.status_code}: {response.text}")
+  except Exception as e:
+    raise Exception(f"Error sending chat message to model: {e}")
+
+
+def run_ollama_with_monitoring(model_name: str, prompt: str) -> Tuple[str, Dict[str, Optional[float]]]:
+  """Runs an Ollama model with resource monitoring.
+
+  Args:
+    model_name: Name of the Ollama model to run
+    prompt: The prompt to send to the model
+
+  Returns:
+    Tuple of (output string, resource statistics dictionary)
+  """
+  try:
+    # Launch process
+    process = subprocess.Popen(
+      ['ollama', 'run', model_name],
+      stdin=subprocess.PIPE,
+      stdout=subprocess.PIPE,
+      stderr=subprocess.PIPE,
+      text=True
+    )
+
+    # Start monitoring thread
+    resource_monitor = ResourceMonitor(process.pid, interval=0.5)
+    monitor_thread = threading.Thread(target=resource_monitor.monitor)
+    monitor_thread.start()
+
+    # Send input and wait for completion
+    stdout, stderr = process.communicate(input=prompt)
+
+    # Stop monitoring and collect stats
+    resource_monitor.stop()
+    monitor_thread.join()
+
+    if process.returncode != 0:
+      raise subprocess.CalledProcessError(process.returncode, process.args, stdout, stderr)
+
+    return stdout, resource_monitor.get_statistics()
+
+  except subprocess.CalledProcessError as e:
+    raise
+  except Exception as e:
+    raise
 
 
 # Model installation functions
@@ -83,7 +286,7 @@ def check_and_install_model(model_name: str) -> bool:
   Checks if the Ollama model is installed locally and pulls it if not.
   """
   # Ensure the Ollama server is running before attempting to pull models
-  ensure_ollama_server_running()
+  test_ollama_server_running()
 
   if is_model_installed(model_name):
     return True
