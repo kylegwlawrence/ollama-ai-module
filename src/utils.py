@@ -200,3 +200,46 @@ def get_models_in_size_range(min_size: float, max_size: float) -> List[str]:
             filtered_models.extend(models)
 
     return filtered_models
+
+
+def get_coding_models() -> List[str]:
+    """Get models designed for coding tasks.
+
+    Coding models are identified by containing the words "code", "coding", or "coder"
+    in their model name (case-insensitive).
+
+    Returns:
+        A list of model names that are designed for coding tasks.
+
+    Raises:
+        subprocess.CalledProcessError: If the ollama list command fails.
+        FileNotFoundError: If ollama is not installed or not in PATH.
+    """
+    models = get_installed_models()
+    coding_keywords = {'code', 'coding', 'coder'}
+    coding_models = []
+
+    for model in models:
+        model_lower = model.lower()
+        if any(keyword in model_lower for keyword in coding_keywords):
+            coding_models.append(model)
+
+    return coding_models
+
+
+def get_non_coding_models() -> List[str]:
+    """Get models that are not designed for coding tasks.
+
+    Returns:
+        A list of model names that are not designed for coding tasks.
+
+    Raises:
+        subprocess.CalledProcessError: If the ollama list command fails.
+        FileNotFoundError: If ollama is not installed or not in PATH.
+    """
+    all_models = get_installed_models()
+    coding_models = get_coding_models()
+    coding_models_set = set(coding_models)
+    non_coding_modules = [model for model in all_models if model not in coding_models_set]
+
+    return non_coding_modules
