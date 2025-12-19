@@ -18,9 +18,7 @@ def run_ollama_chat_smart(chat_session: ChatSession, user_message: str) -> str:
   Raises:
     RuntimeError: If Ollama server is not running
   """
-  # Check that the server is running
   server = OllamaServer()
-  server.test_running()
 
   # Send message via chat session (which maintains context)
   response = chat_session.send_message(user_message)

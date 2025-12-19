@@ -1,5 +1,5 @@
 import argparse
-from src.models import check_and_install_model
+from src.model import check_and_install_model
 from src.inactivity_monitor import ModelInactivityMonitor
 from src.sessions import ChatSession
 from src.server import OllamaServer
