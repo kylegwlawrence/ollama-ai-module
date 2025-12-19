@@ -3,7 +3,7 @@ import requests
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
-#### USE OllamaServer class
+#### USE OllamaServer class and OllamaModel - just use OllamaModel because this contains OllamaServer
 
 
 class ChatSession:

@@ -3,14 +3,14 @@ import time
 from datetime import datetime, timedelta
 from typing import Optional
 
-from models import stop_model
+from src.model import OllamaModel
 
 
 class ModelInactivityMonitor:
   """Monitors inactivity and stops a model after n minutes of no interaction."""
 
-  def __init__(self, model_name: str, inactivity_minutes: float) -> None:
-    self.model_name = model_name
+  def __init__(self, model: OllamaModel, inactivity_minutes: float) -> None:
+    self.model = model
     self.inactivity_minutes = inactivity_minutes
     self.last_interaction = datetime.now()
     self.monitoring = False
@@ -25,14 +25,14 @@ class ModelInactivityMonitor:
     self.monitoring = True
     self.monitor_thread = threading.Thread(target=self._monitor_inactivity, daemon=True)
     self.monitor_thread.start()
-    print(f"Inactivity monitor started for model '{self.model_name}' ({self.inactivity_minutes} minute(s)).")
+    print(f"Inactivity monitor started for model '{self.model.model_name}' ({self.inactivity_minutes} minute(s)).")
 
   def stop_monitoring(self) -> None:
     """Stop monitoring for inactivity."""
     self.monitoring = False
     if self.monitor_thread:
       self.monitor_thread.join(timeout=1)
-    print(f"Inactivity monitor stopped for model '{self.model_name}'.")
+    print(f"Inactivity monitor stopped for model '{self.model.model_name}'.")
 
   def _monitor_inactivity(self) -> None:
     """Run in background thread to check for inactivity."""
@@ -41,8 +41,8 @@ class ModelInactivityMonitor:
       inactivity_threshold = timedelta(minutes=self.inactivity_minutes)
 
       if elapsed >= inactivity_threshold:
-        print(f"Model '{self.model_name}' inactive for {self.inactivity_minutes} minute(s). Stopping...")
-        stop_model(self.model_name)
+        print(f"Model '{self.model.model_name}' inactive for {self.inactivity_minutes} minute(s). Stopping...")
+        self.model.stop_model()
         self.monitoring = False
         break
 

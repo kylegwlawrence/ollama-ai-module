@@ -1,6 +1,6 @@
 import argparse
-from src.model import check_and_install_model
-from src.inactivity_monitor import ModelInactivityMonitor
+from src.model import check_and_install_model, OllamaModel
+from src.model_inactivity_monitor import ModelInactivityMonitor
 from src.sessions import ChatSession
 from src.server import OllamaServer
 
@@ -133,9 +133,12 @@ def main() -> None:
         return
 
     # Ensure Ollama server is running
+    server = None
     if not args.skip_server_check:
         server = OllamaServer()
         server.test_running()
+    else:
+        server = OllamaServer()
 
     # Use provided model
     selected_model = args.model
@@ -144,10 +147,13 @@ def main() -> None:
     if not args.skip_model_check:
         check_and_install_model(selected_model)
 
+    # Create OllamaModel instance
+    model = OllamaModel(selected_model, server)
+
     # Start inactivity monitor if not disabled
     monitor = None
     if not args.no_inactivity_monitor and args.timeout > 0:
-        monitor = ModelInactivityMonitor(selected_model, args.timeout)
+        monitor = ModelInactivityMonitor(model, args.timeout)
         monitor.start_monitoring()
 
     try:
