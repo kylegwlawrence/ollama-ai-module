@@ -1,9 +1,7 @@
 import subprocess
-import threading
 import requests
-from typing import List, Dict, Optional, Tuple
+from typing import Optional
 
-from src.resource_monitor import ResourceMonitor
 from src.server import OllamaServer
 
 class OllamaModel:
@@ -137,44 +135,3 @@ class OllamaModel:
         else:
             print(response)
 
-    def send_prompt_with_resource_monitor(self, prompt: str) -> Tuple[str, Dict[str, Optional[float]]]:
-        """Runs an Ollama model with resource monitoring.
-
-        Args:
-            model_name: Name of the Ollama model to run
-            prompt: The prompt to send to the model
-
-        Returns:
-            Tuple of (output string, resource statistics dictionary)
-        """
-        try:
-            # Launch process
-            process = subprocess.Popen(
-            ['ollama', 'run', self.model_name],
-            stdin=subprocess.PIPE,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True
-            )
-
-            # Start monitoring thread
-            resource_monitor = ResourceMonitor(process.pid, interval=0.5)
-            monitor_thread = threading.Thread(target=resource_monitor.monitor)
-            monitor_thread.start()
-
-            # Send input and wait for completion
-            stdout, stderr = process.communicate(input=prompt)
-
-            # Stop monitoring and collect stats
-            resource_monitor.stop()
-            monitor_thread.join()
-
-            if process.returncode != 0:
-                raise subprocess.CalledProcessError(process.returncode, process.args, stdout, stderr)
-
-            return stdout, resource_monitor.get_statistics()
-
-        except subprocess.CalledProcessError as e:
-            raise
-        except Exception as e:
-            raise
