@@ -1,9 +1,11 @@
+from typing import Any
+
 from src.server import OllamaServer
 from src.model import OllamaModel
 from src.chat_session import ChatSession
 from src.utilities import generate_human_id
 
-def start_conversation(prompt:str, model_name:str, system_prompt:str, **server_kwargs:dict) -> dict:
+def start_conversation(prompt: str, model_name: str, system_prompt: str, **server_kwargs: Any) -> dict[str, str]:
     """
     Start a new conversation with an Ollama model.
 
@@ -42,7 +44,7 @@ def start_conversation(prompt:str, model_name:str, system_prompt:str, **server_k
     # Return the response and the session name
     return {"response": response, "session_name": session.session_name}
     
-def continue_conversation(prompt:str, session_name:str, **server_kwargs) -> str:
+def continue_conversation(prompt: str, session_name: str, **server_kwargs: Any) -> str:
     """
     Continue an existing conversation with an Ollama model.
 
