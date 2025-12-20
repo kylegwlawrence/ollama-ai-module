@@ -2,7 +2,7 @@
 
 This script benchmarks all installed models using a predefined set of prompts.
 """
-from benchmark_models import benchmark_models
+from src.benchmarking.benchmark_models import benchmark_models
 
 if __name__ == "__main__":
     benchmark_models(
