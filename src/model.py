@@ -1,8 +1,12 @@
 import subprocess
 import requests
-from typing import Optional
+import threading
+import time
+from datetime import datetime, timedelta
+from typing import Optional, Dict, Tuple, Union, List
 
 from src.server import OllamaServer
+from src.resource_monitor import ResourceMonitor
 
 class OllamaModel:
     """Manages interactions with the AI model."""
@@ -81,7 +85,7 @@ class OllamaModel:
             else:
                 print(f"Error running Ollama: {e}")
                 
-    def prompt_http(self, prompt: str) -> str:
+    def prompt_generate_api(self, prompt: str) -> str:
         """Send a prompt to an already running Ollama model via HTTP API.
 
         Args:
@@ -109,13 +113,37 @@ class OllamaModel:
                 raise Exception(f"HTTP {response.status_code}: {response.text}")
         except Exception as e:
             raise Exception(f"Error sending prompt to model: {e}")
+    
+    def prompt_chat_api(self, messages: List[Dict[str, str]]) -> str:
+        """Send chat messages to Ollama using /api/chat endpoint.
+
+        Args:
+            messages: List of message dicts with 'role' and 'content' keys
+
+        Returns:
+            The assistant's response as a string
+        """
+        try:
+            url = f'http://{self.server.host}:{self.server.port}/api/chat'
+            payload = {
+                'model': self.model_name,
+                'messages': messages,
+                'stream': False
+            }
+            response = requests.post(url, json=payload, timeout=300)
+            if response.status_code == 200:
+                data = response.json()
+                return data.get('message', {}).get('content', '')
+            else:
+                raise Exception(f"HTTP {response.status_code}: {response.text}")
+        except Exception as e:
+            raise Exception(f"Error sending chat message to model: {e}")
         
-    def send_prompt(self, prompt: str, return_output: bool = False) -> Optional[str]:
+    def send_prompt(self, prompt: Union[str, List[Dict[str, str]]], return_output: bool = False) -> Optional[str]:
         """Run a prompt on a model, using the API if model is running, otherwise use CLI.
 
         Args:
-            model_name: Name of the model
-            prompt: The prompt to send
+            prompt: Either a string prompt or a list of message dicts with 'role' and 'content' keys
             return_output: If True, return the response. If False, print it.
 
         Returns:
@@ -124,14 +152,113 @@ class OllamaModel:
         Raises:
             RuntimeError: If Ollama server is not running
         """
-        # Check if model is already running
-        if self.is_model_running():
-            response = self.prompt_http(prompt)
+        # Handle chat message history (list of dicts)
+        if isinstance(prompt, list):
+            # Chat API only works with running model
+            if self.is_model_running():
+                response = self.prompt_chat_api(prompt)
+            else:
+                raise RuntimeError("Chat API requires the model to be running. Please start the model first.")
         else:
-            response = self.prompt_cli(prompt, return_output=True)
+            # Handle string prompt
+            if self.is_model_running():
+                response = self.prompt_generate_api(prompt)
+            else:
+                response = self.prompt_cli(prompt, return_output=True)
 
         if return_output:
             return response
         else:
             print(response)
 
+
+class ModelInactivityMonitor:
+    """Monitors inactivity and stops a model after n minutes of no interaction."""
+
+    def __init__(self, model: OllamaModel, inactivity_minutes: float) -> None:
+        self.model = model
+        self.inactivity_minutes = inactivity_minutes
+        self.last_interaction = datetime.now()
+        self.monitoring = False
+        self.monitor_thread: Optional[threading.Thread] = None
+
+    def record_interaction(self) -> None:
+        """Update the last interaction time."""
+        self.last_interaction = datetime.now()
+
+    def start_monitoring(self) -> None:
+        """Start monitoring for inactivity in a background thread."""
+        self.monitoring = True
+        self.monitor_thread = threading.Thread(target=self._monitor_inactivity, daemon=True)
+        self.monitor_thread.start()
+        print(f"Inactivity monitor started for model '{self.model.model_name}' ({self.inactivity_minutes} minute(s)).")
+
+    def stop_monitoring(self) -> None:
+        """Stop monitoring for inactivity."""
+        self.monitoring = False
+        if self.monitor_thread:
+            self.monitor_thread.join(timeout=1)
+        print(f"Inactivity monitor stopped for model '{self.model.model_name}'.")
+
+    def _monitor_inactivity(self) -> None:
+        """Run in background thread to check for inactivity."""
+        while self.monitoring:
+            elapsed = datetime.now() - self.last_interaction
+            inactivity_threshold = timedelta(minutes=self.inactivity_minutes)
+
+            if elapsed >= inactivity_threshold:
+                print(f"Model '{self.model.model_name}' inactive for {self.inactivity_minutes} minute(s). Stopping...")
+                self.model.stop_model()
+                self.monitoring = False
+                break
+
+            time.sleep(10)  # Check every 10 seconds
+
+
+class ModelResourceMonitor:
+    """Runs an OllamaModel with resource monitoring capabilities."""
+
+    def __init__(self, model: OllamaModel) -> None:
+        """Initialize with an OllamaModel instance.
+
+        Args:
+            model: An OllamaModel instance to run with monitoring
+        """
+        self.model = model
+        self.resource_monitor = None
+        self.monitor_thread = None
+
+    def send_prompt_with_monitoring(self, prompt: str) -> Tuple[str, Dict[str, Optional[float]]]:
+        """Runs a model with resource monitoring using OllamaModel.send_prompt().
+
+        Args:
+            prompt: The prompt to send to the model
+
+        Returns:
+            Tuple of (output string, resource statistics dictionary)
+        """
+        # Get the model's process to monitor
+        process = self.model.server.get_process()
+
+        if process is None:
+            raise RuntimeError("Ollama server process not available")
+
+        # Start monitoring thread
+        self.resource_monitor = ResourceMonitor(process.pid, interval=0.5)
+        self.monitor_thread = threading.Thread(target=self.resource_monitor.monitor)
+        self.monitor_thread.start()
+
+        try:
+            # Run the model using OllamaModel method
+            output = self.model.send_prompt(prompt, return_output=True)
+
+            # Stop monitoring and collect stats
+            self.resource_monitor.stop()
+            self.monitor_thread.join()
+
+            return output, self.resource_monitor.get_statistics()
+
+        except Exception:
+            self.resource_monitor.stop()
+            self.monitor_thread.join()
+            raise

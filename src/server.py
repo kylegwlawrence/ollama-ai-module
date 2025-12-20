@@ -39,7 +39,7 @@ class OllamaServer:
           "Please start the Ollama server manually before running this function."
         )
       else:
-          print("...Ollama sever is running...")
+          print("...Ollama server is running...")
     except subprocess.SubprocessError:
       raise RuntimeError(
         f"Ollama server is not running on {self.host}:{self.port}. "

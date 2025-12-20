@@ -1,29 +1,23 @@
 import json
-import requests
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 from pathlib import Path
-#### USE OllamaServer class and OllamaModel - just use OllamaModel because this contains OllamaServer
 
+from src.model import OllamaModel
 
 class ChatSession:
   """Manages a conversation session with persistence."""
 
-  def __init__(self, model_name: str, session_name: Optional[str] = None,
-               host: str = '127.0.0.1', port: int = 11434,
+  def __init__(self, model: OllamaModel, session_name: str,
                sessions_dir: str = ".conversations") -> None:
     """Initialize chat session.
 
     Args:
-      model_name: Name of the model to chat with
-      session_name: Optional session name for persistence
-      host: Ollama server host (default: localhost)
-      port: Ollama server port (default: 11434)
+      model: OllamaModel instance to chat with
+      session_name: Session name for persistence
       sessions_dir: Directory to store session files (default: .conversations)
     """
-    self.model_name = model_name
-    self.host = host
-    self.port = port
+    self.model = model
     self.session_name = session_name
     self.sessions_dir = Path(sessions_dir)
     self.sessions_dir.mkdir(exist_ok=True)
@@ -31,49 +25,17 @@ class ChatSession:
     self.messages: List[Dict[str, str]] = []
     self.created_at: Optional[str] = None
 
-    # Load existing session if session_name provided
-    if self.session_name:
-      self._load_session()
+    # Load existing session if it exists
+    self._load_session()
 
   def _get_session_path(self) -> Path:
     """Get the file path for this session."""
-    if not self.session_name:
-      return None
     # Sanitize session name to avoid path traversal
     safe_name = "".join(c for c in self.session_name if c.isalnum() or c in ('-', '_'))
     return self.sessions_dir / f"{safe_name}.json"
 
-  def _send_chat_message(self, messages: List[Dict[str, str]], stream: bool = False) -> str:
-    """Send chat messages to Ollama using /api/chat endpoint.
-
-    Args:
-      messages: List of message dicts with 'role' and 'content' keys
-      stream: Enable streaming responses (default: False)
-
-    Returns:
-      The assistant's response as a string
-    """
-    try:
-      url = f'http://{self.host}:{self.port}/api/chat'
-      payload = {
-        'model': self.model_name,
-        'messages': messages,
-        'stream': stream
-      }
-      response = requests.post(url, json=payload, timeout=300)
-      if response.status_code == 200:
-        data = response.json()
-        return data.get('message', {}).get('content', '')
-      else:
-        raise Exception(f"HTTP {response.status_code}: {response.text}")
-    except Exception as e:
-      raise Exception(f"Error sending chat message to model: {e}")
-
   def _load_session(self) -> None:
     """Load session from storage if it exists."""
-    if not self.session_name:
-      return
-
     session_path = self._get_session_path()
     if not session_path.exists():
       return
@@ -88,25 +50,15 @@ class ChatSession:
 
   def _save_session(self) -> None:
     """Save session to storage."""
-    if not self.session_name:
-      return
-
     session_path = self._get_session_path()
     if self.created_at is None:
       self.created_at = datetime.now().isoformat()
 
-    # Extract system prompt if present
-    system_prompt = None
-    system_messages = [m for m in self.messages if m.get('role') == 'system']
-    if system_messages:
-      system_prompt = system_messages[0].get('content')
-
     session_data = {
       'session_name': self.session_name,
-      'model': self.model_name,
+      'model': self.model.model_name,
       'created_at': self.created_at,
       'last_updated': datetime.now().isoformat(),
-      'system_prompt': system_prompt,
       'messages': self.messages
     }
 
@@ -114,7 +66,7 @@ class ChatSession:
       json.dump(session_data, f, indent=2, ensure_ascii=False)
 
   def send_message(self, user_message: str) -> str:
-    """Send a message and get response.
+    """Send a message with chat history, get a response, and update chat history
 
     Args:
       user_message: User's message text
@@ -125,8 +77,8 @@ class ChatSession:
     # Add user message to history
     self.messages.append({'role': 'user', 'content': user_message})
 
-    # Send message with full history
-    response = self._send_chat_message(self.messages)
+    # Send message with full history using OllamaModel.send_prompt
+    response = self.model.send_prompt(self.messages, return_output=True)
 
     # Add assistant response to history
     self.messages.append({'role': 'assistant', 'content': response})
