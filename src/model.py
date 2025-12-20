@@ -1,11 +1,11 @@
 import subprocess
-import requests
 import threading
 import time
 from datetime import datetime, timedelta
 from typing import Optional, Dict, Tuple, Union, List
 
 from src.server import OllamaServer
+from src.api_client import OllamaAPIClient, OllamaConnectionError, OllamaTimeoutError, OllamaHTTPError, OllamaAPIException
 from src.resource_monitor import ResourceMonitor
 
 class OllamaModel:
@@ -20,6 +20,7 @@ class OllamaModel:
         """
         self.model_name = model_name
         self.server = OllamaServer
+        self.api_client = OllamaAPIClient(host=OllamaServer.host, port=OllamaServer.port)
 
     def is_model_running(self) -> bool:
         """Check if a specific model is currently running.
@@ -33,22 +34,19 @@ class OllamaModel:
             True if the model is running, False otherwise
         """
         try:
-            url = f'http://{self.server.host}:{self.server.port}/api/tags'
-            response = requests.get(url, timeout=2)
-            if response.status_code == 200:
-                data = response.json()
-                models = data.get('models', [])
-                for model in models:
-                    if model.get('name') == self.model_name or self.model_name in model.get('name', ''):
-                        print(f"...{self.model_name} is already running...")
-                        return True
+            data = self.api_client.get_tags()
+            models = data.get('models', [])
+            for model in models:
+                if model.get('name') == self.model_name or self.model_name in model.get('name', ''):
+                    print(f"...{self.model_name} is already running...")
+                    return True
             return False
-        except Exception:
+        except (OllamaAPIException, OllamaConnectionError, OllamaTimeoutError):
             return False
         
         
     def stop_model(self) -> None:
-        """Stop a running Ollama model.
+        """Stop a running Ollama model via terminal command.
 
         Args:
             model_name: Name of the model to stop
@@ -61,7 +59,7 @@ class OllamaModel:
          
             
     def prompt_cli(self, prompt: str, return_output: bool = False) -> Optional[str]:
-        """Runs an Ollama model via CLI and returns the output.
+        """Runs an Ollama model via terminal and returns the output.
 
         Args:
             model_name: Name of the model to run
@@ -86,7 +84,7 @@ class OllamaModel:
                 print(f"Error running Ollama: {e}")
                 
     def prompt_generate_api(self, prompt: str) -> str:
-        """Send a prompt to an already running Ollama model via HTTP API.
+        """Send one chat message to Ollama using the /api/generate endpoint.
 
         Args:
             model_name: Name of the model
@@ -99,19 +97,9 @@ class OllamaModel:
         """
         try:
             print("Running model via API...")
-            url = f'http://{self.server.host}:{self.server.port}/api/generate'
-            payload = {
-            'model': self.model_name,
-            'prompt': prompt,
-            'stream': False
-            }
-            response = requests.post(url, json=payload, timeout=300)
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('response', '')
-            else:
-                raise Exception(f"HTTP {response.status_code}: {response.text}")
-        except Exception as e:
+            data = self.api_client.generate(model=self.model_name, prompt=prompt)
+            return data.get('response', '')
+        except OllamaAPIException as e:
             raise Exception(f"Error sending prompt to model: {e}")
     
     def prompt_chat_api(self, messages: List[Dict[str, str]]) -> str:
@@ -124,19 +112,9 @@ class OllamaModel:
             The assistant's response as a string
         """
         try:
-            url = f'http://{self.server.host}:{self.server.port}/api/chat'
-            payload = {
-                'model': self.model_name,
-                'messages': messages,
-                'stream': False
-            }
-            response = requests.post(url, json=payload, timeout=300)
-            if response.status_code == 200:
-                data = response.json()
-                return data.get('message', {}).get('content', '')
-            else:
-                raise Exception(f"HTTP {response.status_code}: {response.text}")
-        except Exception as e:
+            data = self.api_client.chat(model=self.model_name, messages=messages)
+            return data.get('message', {}).get('content', '')
+        except OllamaAPIException as e:
             raise Exception(f"Error sending chat message to model: {e}")
         
     def send_prompt(self, prompt: Union[str, List[Dict[str, str]]], return_output: bool = False) -> Optional[str]:

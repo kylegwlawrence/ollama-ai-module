@@ -2,6 +2,8 @@ import subprocess
 import psutil
 from typing import Optional, List, Dict
 
+from src.api_client import OllamaAPIClient, OllamaConnectionError
+
 
 class OllamaServer:
   """Manages interactions with Ollama server."""
@@ -15,6 +17,7 @@ class OllamaServer:
     """
     self.host = host
     self.port = port
+    self.api_client = OllamaAPIClient(host=host, port=port)
     self.is_server_running()
 
   def is_server_running(self, timeout: int = 2) -> None:
@@ -27,20 +30,9 @@ class OllamaServer:
       RuntimeError: If Ollama server is not running
     """
     try:
-      result = subprocess.run(
-        ['curl', '-s', '-o', '/dev/null', '-w', '%{http_code}', f'http://{self.host}:{self.port}/api/tags'],
-        capture_output=True,
-        text=True,
-        timeout=timeout
-      )
-      if result.stdout.strip() != '200':
-        raise RuntimeError(
-          f"Non-200 code. Ollama server is not running on {self.host}:{self.port}. "
-          "Please start the Ollama server manually before running this function."
-        )
-      else:
-          print("...Ollama server is running...")
-    except subprocess.SubprocessError:
+      self.api_client.get_tags(timeout=timeout)
+      print("...Ollama server is running...")
+    except OllamaConnectionError:
       raise RuntimeError(
         f"Ollama server is not running on {self.host}:{self.port}. "
         "Please start the Ollama server manually before running this function."
