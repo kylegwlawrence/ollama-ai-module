@@ -1,139 +1,265 @@
-# Hello Ollama
+# hello-ollama
 
-A Python toolkit for working with Ollama AI models, featuring interactive model selection, conversational chat, and performance benchmarking.
+A Python library for interacting with [Ollama](https://ollama.ai) - a local AI model runner. This library provides utilities for managing Ollama servers, running language models, and maintaining persistent chat sessions.
 
 ## Features
 
-- **Interactive Model Chat**: Choose from installed models and chat interactively
-- **Conversational Context**: Multi-turn conversations with automatic message history
-- **Model Benchmarking**: Compare response times and resource usage across models
-- **Automatic Installation**: Download and install models as needed
-- **CSV Export**: Export benchmark results for analysis
-
-## Prerequisites
-
-- **Python 3.7+**: [Check your version](https://www.python.org/downloads/)
-- **pip**: Usually included with Python
-- **Ollama**: Download from [https://ollama.com/](https://ollama.com/)
+- **Chat Sessions**: Start and continue multi-turn conversations with persistent history stored as JSON
+- **Model Management**: Automatically detect installed models and manage model execution
+- **Resource Monitoring**: Track CPU and memory usage during model inference
+- **Flexible Execution**: Use Ollama's REST API or CLI interface automatically
+- **Type Safe**: Full type hints throughout the codebase
 
 ## Installation
 
-1. Clone and setup:
+### Prerequisites
+
+- Python 3.8+
+- [Ollama](https://ollama.ai) installed and available on your system
+
+### Setup
+
+1. Clone the repository:
 ```bash
 git clone <repository-url>
 cd hello-ollama
+```
+
+2. Create a virtual environment:
+```bash
 python -m venv .venv
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 ```
 
-2. Install dependencies:
+3. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Quick Start
 
-### Chat with a Model
+### Starting a New Chat Session
 
-Run the main script with a model, prompt, and timeout:
-```bash
-python main.py "What is Python?" -m llama2 -t 5
+```python
+from ollama_chat import start_chat_session
+
+result = start_chat_session(
+    prompt="Hello, how are you?",
+    model_name="smollm2:135m",
+    system_prompt="You are a helpful assistant"
+)
+
+print(result['response'])  # Model's response
+print(result['session_name'])  # Session identifier for future conversations
 ```
 
-**Arguments:**
-- `prompt` (positional): The prompt to send to the model
-- `-m, --model` (required): Model name to use
-- `-t, --timeout` (required): Inactivity timeout in minutes
+### Continuing a Chat Session
 
-**Options:**
-- `-i, --interactive`: Run in interactive mode (continuous prompting)
-- `--skip-server-check`: Skip checking if Ollama server is running
-- `--skip-model-check`: Skip checking if model is installed
-- `--no-inactivity-monitor`: Disable inactivity monitoring
+```python
+from ollama_chat import continue_chat_session
 
-**Examples:**
-```bash
-# Single prompt with timeout
-python main.py "Hello" -m llama2 -t 5
+result = continue_chat_session(
+    prompt="Tell me more about that",
+    session_name="happy-blue-penguin"  # From previous session
+)
 
-# Interactive mode (continuous prompting)
-python main.py -i -m mistral -t 10
-
-# Skip model check with custom timeout
-python main.py "Tell me a joke" -m phi -t 15 --skip-model-check
+print(result['response'])
 ```
 
-### Benchmark Models
+## Core Components
 
-Compare multiple models with the same prompt:
+### OllamaServer
 
-```bash
-# Benchmark all installed models
-python benchmark_models.py "Explain quantum computing"
+Manages the connection to your local Ollama server and validates availability.
 
-# Benchmark specific models
-python benchmark_models.py "Tell me a joke" -m llama2 mistral phi
+```python
+from src.server import OllamaServer
 
-# Save to custom file
-python benchmark_models.py "What is Python?" -m llama2 -o results.csv
+server = OllamaServer()
+models = server.list_models()
 ```
 
-**Output:** CSV file with model name, response time, CPU/memory usage, response text, and timestamp.
+### OllamaModel
 
-### Python API Examples
+Executes prompts using a specified model. Automatically selects between REST API and CLI execution.
 
-See [CHAT_API_GUIDE.md](CHAT_API_GUIDE.md) for comprehensive Python API documentation, including:
-- Chat sessions with automatic context management
-- System prompts and model behavior customization
-- Resource monitoring and tracking
-- Programmatic conversation loops
-- Advanced examples and best practices
-- Complete API reference
+```python
+from src.model import OllamaModel
+from src.server import OllamaServer
+
+server = OllamaServer()
+model = OllamaModel("smollm2:135m", server)
+response = model.send_prompt("Your prompt here", return_output=True)
+```
+
+### ChatSession
+
+Manages multi-turn conversations with persistent storage. Sessions are saved as JSON files in `.conversations/` directory.
+
+```python
+from src.chat_session import ChatSession
+from src.model import OllamaModel
+from src.server import OllamaServer
+
+server = OllamaServer()
+model = OllamaModel("smollm2:135m", server)
+session = ChatSession(model, "my-session-name")
+
+# Send a message
+response = session.send_message("Hello!")
+
+# Set system prompt
+session.set_system_prompt("You are a helpful expert")
+
+# Get conversation history
+history = session.get_history()
+
+# List all sessions
+all_sessions = ChatSession.list_sessions()
+
+# Delete a session
+ChatSession.delete_session("my-session-name")
+```
+
+### ResourceMonitor
+
+Tracks CPU and memory usage of a process in real-time.
+
+```python
+from src.resource_monitor import ResourceMonitor
+import os
+
+monitor = ResourceMonitor(os.getpid())
+monitor.start()
+# ... do some work ...
+monitor.stop()
+
+print(f"Avg CPU: {monitor.get_average_cpu()}%")
+print(f"Peak Memory: {monitor.get_peak_memory()}MB")
+```
+
+### OllamaAPIClient
+
+Low-level HTTP client for direct API communication with Ollama server.
+
+```python
+from src.api_client import OllamaAPIClient
+
+client = OllamaAPIClient()
+models = client.list_models()
+response = client.generate("smollm2:135m", "Your prompt here")
+```
+
+## API Reference
+
+### start_chat_session(prompt, model_name, system_prompt)
+
+Start a new conversation with an Ollama model.
+
+**Parameters:**
+- `prompt` (str): The initial user prompt
+- `model_name` (str): Name of the model (e.g., 'smollm2:135m', 'llama2')
+- `system_prompt` (str): System instructions for the model
+
+**Returns:** Dictionary with:
+- `response` (str): Model's response to the initial prompt
+- `session_name` (str): Unique session identifier
+
+### continue_chat_session(prompt, session_name)
+
+Continue an existing conversation.
+
+**Parameters:**
+- `prompt` (str): User's message in the ongoing conversation
+- `session_name` (str): Session identifier from a previous session
+
+**Returns:** Dictionary with:
+- `response` (str): Model's response
+- `session_name` (str): Session identifier
 
 ## Project Structure
 
 ```
 hello-ollama/
-├── main.py                      # CLI chat interface
-├── benchmark_models.py          # Model benchmarking tool
 ├── src/
-│   ├── __init__.py             # Package initialization
-│   ├── install_ollama_model.py # Model installation
-│   ├── group_models.py         # Model listing and filtering
-│   └── run_ollama.py           # Core Ollama wrapper
+│   ├── api_client.py          # Ollama HTTP API client
+│   ├── server.py              # Server management and model listing
+│   ├── model.py               # Model execution and monitoring
+│   ├── chat_session.py        # Chat session persistence
+│   ├── resource_monitor.py    # CPU/memory monitoring
+│   ├── utilities.py           # Helper functions
+│   └── __init__.py
 ├── examples/
-│   └── hello-world.py          # Simple example script
-└── README.md                    # This file
+│   ├── start_chat_session.py  # Example: starting a new session
+│   ├── continue_chat_session.py # Example: continuing a session
+│   ├── server.py              # Example: server interaction
+│   └── resource_monitor.py    # Example: monitoring resources
+├── ollama_chat.py             # Public API functions
+├── requirements.txt           # Python dependencies
+└── README.md                  # This file
 ```
 
+## Dependencies
 
-## Benchmarking Notes
+- **psutil** (>=5.11.0): Process and system monitoring
+- **requests** (>=2.31.0): HTTP client for Ollama API
+- **human_id** (>=0.2.0): Generate human-readable session IDs
 
-This tool measures response time and basic resource usage. It does not evaluate:
-- Response quality or accuracy
-- Model capabilities across different tasks
-- Token throughput or generation speed
-- Consistency across multiple runs
-- GPU usage (for GPU-accelerated models)
+## Session Storage
 
-Resource metrics are sampled periodically. CPU percentage can exceed 100% on multi-core systems. Results vary based on system resources, model size, and prompt complexity.
+Chat sessions are automatically saved to `.conversations/` directory as JSON files. Each session file contains:
 
-## Tips
+```json
+{
+  "session_name": "happy-blue-penguin",
+  "model": "smollm2:135m",
+  "created_at": "2024-01-15T10:30:45.123456",
+  "last_updated": "2024-01-15T10:35:20.654321",
+  "messages": [
+    {"role": "system", "content": "You are helpful"},
+    {"role": "user", "content": "Hello"},
+    {"role": "assistant", "content": "Hi! How can I help?"}
+  ]
+}
+```
 
-- **Model Names**: Check [Ollama Library](https://ollama.com/library) for available models
-- **Prompt Quality**: Better prompts lead to better outputs
-- **Error Handling**: Scripts handle common issues like missing models
+## Examples
 
-## Resources
+See the `examples/` directory for complete working examples:
 
-- [Ollama Documentation](https://docs.ollama.com)
-- [Ollama GitHub](https://github.com/ollama/ollama)
-- [Ollama Model Library](https://ollama.com/library)
+- [Start Chat Session](examples/start_chat_session.py)
+- [Continue Chat Session](examples/continue_chat_session.py)
+- [Server Interaction](examples/server.py)
+- [Resource Monitoring](examples/resource_monitor.py)
 
-## License
+## Error Handling
 
-MIT License - See LICENSE file for details
+The library provides custom exceptions for different error scenarios:
+
+```python
+from src.api_client import (
+    OllamaAPIException,
+    OllamaConnectionError,
+    OllamaTimeoutError
+)
+
+try:
+    result = start_chat_session(prompt, model, system_prompt)
+except OllamaConnectionError:
+    print("Could not connect to Ollama server")
+except OllamaTimeoutError:
+    print("Request timed out")
+except OllamaAPIException as e:
+    print(f"API error: {e}")
+```
+
+## Notes
+
+- Ollama server must be running before using this library
+- Models are lazy-loaded on first use
+- Session persistence is automatic with each message sent
+- Resource monitoring runs in a background thread
 
 ## Contributing
 
-Contributions welcome! Feel free to submit issues or pull requests.
+Contributions are welcome! Please ensure all code includes type hints and follows the existing code style.
