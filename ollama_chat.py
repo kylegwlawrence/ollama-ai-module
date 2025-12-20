@@ -5,7 +5,7 @@ from src.model import OllamaModel
 from src.chat_session import ChatSession
 from src.utilities import generate_human_id
 
-def start_conversation(prompt: str, model_name: str, system_prompt: str, **server_kwargs: Any) -> dict[str, str]:
+def start_chat_session(prompt: str, model_name: str, system_prompt: str) -> dict[str, str]:
     """
     Start a new conversation with an Ollama model.
 
@@ -29,7 +29,7 @@ def start_conversation(prompt: str, model_name: str, system_prompt: str, **serve
     """
 
     # Instantiate OllamaServer and OllamaModel
-    server = OllamaServer(**server_kwargs)
+    server = OllamaServer()
     model = OllamaModel(model_name, server)
     
     # Instantiate a new ChatSession
@@ -44,7 +44,7 @@ def start_conversation(prompt: str, model_name: str, system_prompt: str, **serve
     # Return the response and the session name
     return {"response": response, "session_name": session.session_name}
     
-def continue_conversation(prompt: str, session_name: str, **server_kwargs: Any) -> str:
+def continue_chat_session(prompt: str, session_name: str) -> str:
     """
     Continue an existing conversation with an Ollama model.
 
@@ -71,13 +71,14 @@ def continue_conversation(prompt: str, session_name: str, **server_kwargs: Any) 
     session_model = session_information["model"]
     
     # Instantiate objects
-    server = OllamaServer(**server_kwargs)
+    server = OllamaServer()
     model = OllamaModel(session_model, server)
     
     # Restore the session
-    restored_session = ChatSession(model, session_name)
+    session = ChatSession(model, session_name)
     
     # Send new message
-    response = restored_session.send_message(prompt)
+    response = session.send_message(prompt)
     
-    return response
+    # Return the response and the session name
+    return {"response": response, "session_name": session.session_name}

@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Tuple, Union, List
 
 from src.server import OllamaServer
-from src.api_client import OllamaAPIClient, OllamaConnectionError, OllamaTimeoutError, OllamaHTTPError, OllamaAPIException
+from src.api_client import OllamaConnectionError, OllamaTimeoutError, OllamaHTTPError, OllamaAPIException
 from src.resource_monitor import ResourceMonitor
 
 class OllamaModel:
@@ -20,7 +20,6 @@ class OllamaModel:
         """
         self.model_name = model_name
         self.server = OllamaServer
-        self.api_client = OllamaAPIClient(host=OllamaServer.host, port=OllamaServer.port)
 
     def is_model_running(self) -> bool:
         """Check if a specific model is currently running.
@@ -34,7 +33,7 @@ class OllamaModel:
             True if the model is running, False otherwise
         """
         try:
-            data = self.api_client.get_tags()
+            data = self.server.api_client.get_tags()
             models = data.get('models', [])
             for model in models:
                 if model.get('name') == self.model_name or self.model_name in model.get('name', ''):
@@ -97,7 +96,7 @@ class OllamaModel:
         """
         try:
             print("Running model via API...")
-            data = self.api_client.generate(model=self.model_name, prompt=prompt)
+            data = self.server.api_client.generate(model=self.model_name, prompt=prompt)
             return data.get('response', '')
         except OllamaAPIException as e:
             raise Exception(f"Error sending prompt to model: {e}")
@@ -112,7 +111,7 @@ class OllamaModel:
             The assistant's response as a string
         """
         try:
-            data = self.api_client.chat(model=self.model_name, messages=messages)
+            data = self.server.api_client.chat(model=self.model_name, messages=messages)
             return data.get('message', {}).get('content', '')
         except OllamaAPIException as e:
             raise Exception(f"Error sending chat message to model: {e}")

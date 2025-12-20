@@ -32,15 +32,16 @@ class OllamaHTTPError(OllamaAPIException):
 class OllamaAPIClient:
     """Centralized client for making HTTP requests to Ollama API"""
 
-    def __init__(self, host: str = HOST, port: int = PORT) -> None:
+    def __init__(self) -> None:
         """Initialize the API client with server connection details.
 
         Args:
             host: Ollama server host
             port: Ollama server port
         """
-        self.host = host
-        self.port = port
+        
+        self.host = HOST
+        self.port = PORT
         self.base_url = f'http://{self.host}:{self.port}'
 
     def get_tags(self, timeout: Optional[float] = 2) -> Dict:

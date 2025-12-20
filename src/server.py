@@ -6,15 +6,17 @@ from src.api_client import OllamaAPIClient, OllamaConnectionError
 class OllamaServer:
   """Manages interactions with Ollama server."""
 
-  def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
-    """Initialize OllamaServer with connection parameters.
+  def __init__(self):
+    """Initialize OllamaServer with an OllamaAPIClient
 
     Args:
       host: Ollama server host (defaults to a CONSTANT)
       port: Ollama server port (defaults to a CONSTANT)
     """
-    
-    self.api_client = OllamaAPIClient(host, port)
+
+    self.api_client = OllamaAPIClient()
+    self.host = self.api_client.host
+    self.port = self.api_client.port
     self.is_server_running()
 
   def is_server_running(self, timeout: int = 2) -> None:
