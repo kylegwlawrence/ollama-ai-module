@@ -238,7 +238,7 @@ class ModelResourceMonitor:
             Tuple of (output string, resource statistics dictionary)
         """
         # Get the model's process to monitor
-        process = self.model.server.get_process()
+        process = self.model.server.get_process_id()
 
         if process is None:
             raise RuntimeError("Ollama server process not available")

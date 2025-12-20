@@ -15,9 +15,9 @@ class OllamaServer:
     """
     self.host = host
     self.port = port
-    self.test_running()
+    self.is_server_running()
 
-  def test_running(self, timeout: int = 2) -> None:
+  def is_server_running(self, timeout: int = 2) -> None:
     """Check if Ollama server is running, raise error if not.
 
     Args:
@@ -47,7 +47,7 @@ class OllamaServer:
       )
 
   @staticmethod
-  def get_process() -> Optional[psutil.Process]:
+  def get_process_id() -> Optional[psutil.Process]:
     """Get the Ollama server process object.
 
     Returns:
