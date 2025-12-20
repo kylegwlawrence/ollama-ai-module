@@ -39,8 +39,8 @@ class OllamaAPIClient:
             host: Ollama server host
             port: Ollama server port
         """
-        self.host = HOST
-        self.port = PORT
+        self.host = host
+        self.port = port
         self.base_url = f'http://{self.host}:{self.port}'
 
     def get_tags(self, timeout: Optional[float] = 2) -> Dict:
