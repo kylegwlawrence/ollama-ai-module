@@ -1,27 +1,24 @@
-import subprocess
 import psutil
 from typing import Optional, List, Dict
 
 from src.api_client import OllamaAPIClient, OllamaConnectionError
 
-
 class OllamaServer:
   """Manages interactions with Ollama server."""
 
-  def __init__(self, host: str = '127.0.0.1', port: int = 11434):
+  def __init__(self, host: Optional[str] = None, port: Optional[int] = None):
     """Initialize OllamaServer with connection parameters.
 
     Args:
-      host: Ollama server host (default: localhost)
-      port: Ollama server port (default: 11434)
+      host: Ollama server host (defaults to a CONSTANT)
+      port: Ollama server port (defaults to a CONSTANT)
     """
-    self.host = host
-    self.port = port
-    self.api_client = OllamaAPIClient(host=host, port=port)
+    
+    self.api_client = OllamaAPIClient(host, port)
     self.is_server_running()
 
   def is_server_running(self, timeout: int = 2) -> None:
-    """Check if Ollama server is running, raise error if not.
+    """Check if Ollama server is running by querying the tags endpoint, raise error if not.
 
     Args:
       timeout: Connection timeout in seconds
@@ -34,7 +31,7 @@ class OllamaServer:
       print("...Ollama server is running...")
     except OllamaConnectionError:
       raise RuntimeError(
-        f"Ollama server is not running on {self.host}:{self.port}. "
+        f"Ollama server is not running on {self.api_client.host}:{self.api_client.port}. "
         "Please start the Ollama server manually before running this function."
       )
 
@@ -65,33 +62,14 @@ class OllamaServer:
         A list of model names installed locally.
 
     Raises:
-        subprocess.CalledProcessError: If the ollama list command fails.
-        FileNotFoundError: If ollama is not installed or not in PATH.
+        OllamaConnectionError: If unable to connect to server
+        OllamaTimeoutError: If request times out
+        OllamaHTTPError: If API returns non-200 status
+        OllamaAPIException: If response cannot be parsed
     """
-    try:
-        result = subprocess.run(['ollama', 'list'],
-                              capture_output=True, text=True, check=True)
-
-        lines = result.stdout.strip().split('\n')
-        models = []
-
-        # Skip the header line and parse model names
-        for line in lines[1:]:
-            if line.strip():
-                # The first column is the model name
-                model_name = line.split()[0]
-                models.append(model_name)
-
-        return models
-
-    except FileNotFoundError:
-        raise FileNotFoundError("Ollama is not installed or not in PATH")
-    except subprocess.CalledProcessError as e:
-        raise subprocess.CalledProcessError(
-            e.returncode,
-            e.cmd,
-            stderr=f"Error running 'ollama list': {e.stderr}"
-        )
+    tags_response = self.api_client.get_tags()
+    models = [model['name'] for model in tags_response.get('models', [])]
+    return models
 
   def get_models_grouped_by_base_name(self) -> Dict[str, List[str]]:
     """Get locally installed Ollama models grouped by their base name.

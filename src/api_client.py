@@ -1,6 +1,8 @@
 import requests
 from typing import Optional, Dict, List
 
+HOST = '127.0.0.1'
+PORT = 11434
 
 # Custom Exception Hierarchy
 class OllamaAPIException(Exception):
@@ -30,16 +32,16 @@ class OllamaHTTPError(OllamaAPIException):
 class OllamaAPIClient:
     """Centralized client for making HTTP requests to Ollama API"""
 
-    def __init__(self, host: str = '127.0.0.1', port: int = 11434):
+    def __init__(self, host: str = HOST, port: int = PORT) -> None:
         """Initialize the API client with server connection details.
 
         Args:
-            host: Ollama server host (default: localhost)
-            port: Ollama server port (default: 11434)
+            host: Ollama server host
+            port: Ollama server port
         """
-        self.host = host
-        self.port = port
-        self.base_url = f'http://{host}:{port}'
+        self.host = HOST
+        self.port = PORT
+        self.base_url = f'http://{self.host}:{self.port}'
 
     def get_tags(self, timeout: Optional[float] = 2) -> Dict:
         """Fetch the list of models available on the server.
