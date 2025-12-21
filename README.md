@@ -30,6 +30,15 @@ source .venv/bin/activate  # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+**Optional - For Conversation Summarization:**
+
+Pull the summarization model (used to auto-summarize chats on exit):
+```bash
+ollama pull gemma3:1b-it-q4_K_M
+```
+
+Or customize by changing `CHAT_SUMMARY_MODEL` constant in `src/chat_session.py` (line 7) to any model you prefer.
+
 ## Quick Start
 
 ### Interactive CLI
@@ -91,17 +100,6 @@ history = session.get_history()
 all_sessions = ChatSession.list_sessions()
 session_info = ChatSession.get_session_info("my-session-name")
 ChatSession.delete_session("my-session-name")
-```
-
-### OllamaModel - Execute Prompts
-
-```python
-from src.model import OllamaModel
-from src.server import OllamaServer
-
-server = OllamaServer()
-model = OllamaModel("llama2", server)
-response = model.send_prompt("Your prompt here", return_output=True)
 ```
 
 ### OllamaServer - Server Management
@@ -206,9 +204,10 @@ except OllamaHTTPError as e:
 - Request Timeout: `600s`
 
 **Summarization** (in `src/chat_session.py`):
-- Default model: `gemma3:1b`
+- Default model: `gemma3:1b-it-q4_K_M` (configurable via `CHAT_SUMMARY_MODEL` constant)
 - Focuses on first 3-5 message exchanges
 - Triggered on graceful exit
+- Requires model to be pulled: `ollama pull gemma3:1b-it-q4_K_M`
 
 ## Examples
 
@@ -231,4 +230,4 @@ See `examples/` directory:
 - Sessions auto-save after each message
 - Session names sanitized (alphanumeric + hyphens/underscores)
 - Resource monitoring runs in daemon thread
-- Summary generation uses separate small model (gemma3:1b)
+- Summary generation uses separate small model (gemma3:1b-it-q4_K_M)
