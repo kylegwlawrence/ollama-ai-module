@@ -30,7 +30,6 @@ class OllamaServer:
     """
     try:
       self.api_client.get_tags(timeout=timeout)
-      print("...Ollama server is running...")
     except OllamaConnectionError:
       raise RuntimeError(
         f"Ollama server is not running on {self.api_client.host}:{self.api_client.port}. "

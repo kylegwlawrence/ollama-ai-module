@@ -37,7 +37,6 @@ class OllamaModel:
             models = data.get('models', [])
             for model in models:
                 if model.get('name') == self.model_name or self.model_name in model.get('name', ''):
-                    print(f"...{self.model_name} is already running...")
                     return True
             return False
         except (OllamaAPIException, OllamaConnectionError, OllamaTimeoutError):
@@ -95,7 +94,6 @@ class OllamaModel:
             The model's response as a string
         """
         try:
-            print("Running model via API...")
             data = self.server.api_client.generate(model=self.model_name, prompt=prompt)
             return data.get('response', '')
         except OllamaAPIException as e:

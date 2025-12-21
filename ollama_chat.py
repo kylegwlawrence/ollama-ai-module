@@ -39,9 +39,6 @@ def start_chat_session(prompt: str, model_name: str, system_prompt: str = None) 
     # Send a new message
     response = session.send_message(prompt)
 
-    # Summarize the conversation
-    session.summarize_conversation()
-    
     # Return the response and the session name
     return {"response": response, "session_name": session.session_name}
     
@@ -82,9 +79,6 @@ def continue_chat_session(prompt: str, session_name: str) -> dict[str, str]:
 
     # Send new message
     response = session.send_message(prompt)
-
-    # Summarize the conversation
-    session.summarize_conversation()
 
     # Return the response and the session name
     return {"response": response, "session_name": session.session_name}
@@ -194,6 +188,21 @@ def main():
 
         print(f"\nResuming conversation: {session_name}")
 
+        # Print conversation history to help user feel back in context
+        try:
+            session_information = ChatSession.get_session_info(session_name)
+            session_model = session_information["model"]
+
+            # Instantiate objects to load the session
+            server = OllamaServer()
+            model = OllamaModel(session_model, server)
+            temp_session = ChatSession(model, session_name)
+
+            # Print the conversation history
+            temp_session.print_conversation()
+        except Exception as e:
+            print(f"Warning: Could not load conversation history: {e}")
+
     else:
         print("Invalid choice. Exiting.")
         sys.exit(1)
@@ -211,7 +220,19 @@ def main():
             if user_input.lower() in ['exit', 'quit']:
                 print("\nEnding chat session. Goodbye!")
                 if session_name:
-                    print(f"Your conversation has been saved as: {session_name}")
+                    # Summarize the conversation before exiting
+                    try:
+                        print(f"Saving conversation...")
+                        session_info = ChatSession.get_session_info(session_name)
+                        model_name = session_info["model"]
+                        server = OllamaServer()
+                        model = OllamaModel(model_name, server)
+                        session = ChatSession(model, session_name)
+                        session.summarize_conversation()
+                        print(f"Your conversation has been saved as: {session_name}")
+                    except Exception as e:
+                        print(f"Warning: Could not generate summary: {e}")
+                    
                 break
 
             if not user_input:
@@ -239,6 +260,16 @@ def main():
     except KeyboardInterrupt:
         print("\n\nChat interrupted. Goodbye!")
         if session_name:
+            # Summarize the conversation before exiting
+            try:
+                session_info = ChatSession.get_session_info(session_name)
+                model_name = session_info["model"]
+                server = OllamaServer()
+                model = OllamaModel(model_name, server)
+                session = ChatSession(model, session_name)
+                session.summarize_conversation()
+            except Exception as e:
+                print(f"Warning: Could not generate summary: {e}")
             print(f"Your conversation has been saved as: {session_name}")
 
 

@@ -54,11 +54,18 @@ class ChatSession:
     if self.created_at is None:
       self.created_at = datetime.now().isoformat()
 
+    # Extract system prompt if it exists
+    system_prompt = None
+    system_messages = [m for m in self.messages if m.get('role') == 'system']
+    if system_messages:
+      system_prompt = system_messages[0].get('content')
+
     session_data = {
       'session_name': self.session_name,
       'model': self.model.model_name,
       'created_at': self.created_at,
       'last_updated': datetime.now().isoformat(),
+      'system_prompt': system_prompt,
       'messages': self.messages
     }
 
@@ -138,11 +145,47 @@ class ChatSession:
     """
     return self.messages.copy()
 
+  def print_conversation(self) -> None:
+    """Print the conversation history in a nicely formatted way.
+
+    Displays all messages with clear role labels and formatting.
+    System messages are shown in brackets, user messages are prefixed with 'You:',
+    and assistant messages are prefixed with 'Assistant:'.
+    """
+    if not self.messages:
+      print("No conversation history.")
+      return
+
+    print("\n" + "=" * 50)
+    print("CONVERSATION HISTORY")
+    print("=" * 50 + "\n")
+
+    for message in self.messages:
+      role = message.get('role', 'unknown')
+      content = message.get('content', '')
+
+      if role == 'system':
+        print(f"⚙️  [System]: {content}\n")
+      elif role == 'user':
+        print(f"👤 You: {content}\n")
+      elif role == 'assistant':
+        print(f"🤖 Assistant: {content}\n")
+      else:
+        print(f"❓ [{role}]: {content}\n")
+
+    print("=" * 50)
+    print("END OF HISTORY")
+    print("=" * 50 + "\n")
+
   def set_system_prompt(self, system_prompt: str) -> None:
     """Set or update system prompt.
 
     Args:
       system_prompt: System instruction text
+
+    Note:
+      This method does not automatically save the session. The session will be
+      saved when send_message() is called or when explicitly saved via other methods.
     """
     # Remove existing system message if present
     self.messages = [m for m in self.messages if m.get('role') != 'system']
@@ -150,14 +193,11 @@ class ChatSession:
     # Add new system message at the beginning
     self.messages.insert(0, {'role': 'system', 'content': system_prompt})
 
-    # Save session after updating system prompt
-    self._save_session()
-
   def summarize_conversation(self, model_name='qwen3:0.6b', max_word_count=8) -> None:
-    """Generate a concise summary of the conversation and save it to the session file.
+    """Generate a concise summary of the entire conversation and save it to the session file.
 
-    Uses the gemma3:270m model to create an 5-word-or-less summary that
-    describes the conversation topic based on the first user message.
+    Analyzes all user and assistant messages to create a summary that describes
+    the overall conversation topic and content.
 
     Args:
       model_name: The name of the model to use for summarization (default: 'qwen3:0.6b').
@@ -176,21 +216,38 @@ class ChatSession:
     from src.server import OllamaServer
     from src.model import OllamaModel
 
-    # Find the first user message from current session messages
-    user_messages = [m for m in self.messages if m.get('role') == 'user']
+    # Get all user and assistant messages from the messages key (exclude system messages)
+    conversation_messages = [m for m in self.messages if m.get('role') in ['user', 'assistant']]
 
-    if not user_messages:
-      raise ValueError(f"No user messages found in session '{self.session_name}'")
+    if not conversation_messages:
+      raise ValueError(f"No conversation messages found in session '{self.session_name}'")
 
-    first_user_message = user_messages[0]['content']
+    # Build a chronological text representation of the conversation using only user and assistant messages
+    conversation_text = ""
+    for msg in conversation_messages:
+      role = msg.get('role', '').capitalize()
+      content = msg.get('content', '')
+      conversation_text += f"{role}: {content}\n"
 
     # Initialize server and model for summarization
     server = OllamaServer()
     model = OllamaModel(model_name, server)
 
-    # Create a prompt that instructs the model to summarize concisely
-    prompt = f"""Your job is to take long strings of text and summarize the contents of the text into a maximum of {max_word_count} words.
-    Follow those rules and summarize the following text: {first_user_message}"""
+    # Create a prompt that instructs the model to summarize the entire conversation
+    prompt = f"""You are a conversation summarization assistant. Your task is to analyze the CONVERSATION THREAD below and create a concise summary that captures the core topic of discussion.
+
+Instructions:
+- Read through the entire conversation between User and Assistant
+- Identify the main topic, question, or problem being discussed
+- Focus on WHAT is being discussed, not the back-and-forth details
+- Create a summary in {max_word_count} words or fewer
+- Use clear language, but be broad enough to correctly describe the conversation. Assume the conversation will continue. 
+- Output ONLY the summary text, nothing else
+
+CONVERSATION THREAD:
+{conversation_text}
+
+Summary ({max_word_count} words max):"""
 
     # Get the summary from the model
     summary = model.prompt_generate_api(prompt)
