@@ -97,10 +97,17 @@ def graceful_exit(session_name=None):
             model = OllamaModel(model_name, server)
             session = ChatSession(model, session_name)
             session.summarize_conversation()
+
+            # Get the updated session info with the summary
+            updated_info = ChatSession.get_session_info(session_name)
+            summary = updated_info.get('conversation_summary', 'No summary generated')
+
+            print(f"Conversation is saved.")
+            print(f"Summary: {summary}")
         except Exception as e:
             print(f"Warning: Could not generate summary: {e}")
-        print(f"Conversation saved, byeee")
-    
+            print(f"Conversation is saved.")
+
     sys.exit(0)
 
 def get_input(prompt_text, session_name=None):
