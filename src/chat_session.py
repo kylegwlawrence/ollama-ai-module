@@ -5,7 +5,7 @@ from pathlib import Path
 
 from src.model import OllamaModel
 
-CHAT_SUMMARY_MODEL = 'gemma3:1b'
+CHAT_SUMMARY_MODEL = 'gemma3:1b-it-q4_K_M'
 
 class ChatSession:
   """Manages a conversation session with persistence."""
