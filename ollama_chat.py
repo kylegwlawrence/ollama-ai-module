@@ -343,14 +343,54 @@ def main():
         # Get list of installed models
         try:
             server = OllamaServer()
-            installed_models = sorted(server.get_installed_models())
+            all_models = sorted(server.get_installed_models())
 
-            if not installed_models:
+            if not all_models:
                 print("No models found. Please install a model first.")
                 sys.exit(1)
 
-            # Display models with numbers
-            print("\nAvailable models:")
+            # Ask user for model filter preference
+            print("\nHow would you like to filter models?")
+            print("1. Show all models")
+            print("2. Show only small models (1B or less)")
+            print("3. Show only larger models (more than 1B)")
+            print("4. Show only coding models")
+            print("5. Show only non-coding models")
+
+            while True:
+                filter_choice = get_input("\nSelect filter option (1-5): ")
+
+                if filter_choice == "1":
+                    installed_models = all_models
+                    filter_description = "All models"
+                    break
+                elif filter_choice == "2":
+                    installed_models = sorted(server.get_models_in_size_range(0.0, 1.0))
+                    filter_description = "Small models (1B or less)"
+                    break
+                elif filter_choice == "3":
+                    installed_models = sorted(server.get_models_in_size_range(1.01, 1000.0))
+                    filter_description = "Larger models (more than 1B)"
+                    break
+                elif filter_choice == "4":
+                    installed_models = sorted(server.get_coding_models())
+                    filter_description = "Coding models"
+                    break
+                elif filter_choice == "5":
+                    installed_models = sorted(server.get_non_coding_models())
+                    filter_description = "Non-coding models"
+                    break
+                else:
+                    print("Invalid choice. Please enter a number between 1 and 5.")
+
+            if not installed_models:
+                print(f"\nNo models found for filter: {filter_description}")
+                print("Falling back to all models.")
+                installed_models = all_models
+                filter_description = "All models"
+
+            # Display filtered models with numbers
+            print(f"\n{filter_description}:")
             for idx, model in enumerate(installed_models, 1):
                 print(f"{idx}. {model}")
 

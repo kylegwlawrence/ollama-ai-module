@@ -103,7 +103,7 @@ class OllamaServer:
     return grouped
 
 
-def get_models_grouped_by_size(self) -> Dict[float, List[str]]:
+  def get_models_grouped_by_size(self) -> Dict[float, List[str]]:
     """Get locally installed Ollama models grouped by their parameter size.
 
     Models are grouped by extracting the size tag (the part after the colon)
@@ -153,7 +153,7 @@ def get_models_grouped_by_size(self) -> Dict[float, List[str]]:
     return grouped
 
 
-def get_models_in_size_range(self, min_size: float, max_size: float) -> List[str]:
+  def get_models_in_size_range(self, min_size: float, max_size: float) -> List[str]:
     """Get models within a specific parameter size range (in billions).
 
     Args:
@@ -181,7 +181,7 @@ def get_models_in_size_range(self, min_size: float, max_size: float) -> List[str
     return filtered_models
 
 
-def get_coding_models(self) -> List[str]:
+  def get_coding_models(self) -> List[str]:
     """Get models designed for coding tasks.
 
     Coding models are identified by containing the words "code", "coding", or "coder"
@@ -206,7 +206,7 @@ def get_coding_models(self) -> List[str]:
     return coding_models
 
 
-def get_non_coding_models(self) -> List[str]:
+  def get_non_coding_models(self) -> List[str]:
     """Get models that are not designed for coding tasks.
 
     Returns:
@@ -217,8 +217,8 @@ def get_non_coding_models(self) -> List[str]:
         FileNotFoundError: If ollama is not installed or not in PATH.
     """
     all_models = self.get_installed_models()
-    coding_models = get_coding_models()
+    coding_models = self.get_coding_models()
     coding_models_set = set(coding_models)
-    non_coding_modules = [model for model in all_models if model not in coding_models_set]
+    non_coding_models = [model for model in all_models if model not in coding_models_set]
 
-    return non_coding_modules
+    return non_coding_models
