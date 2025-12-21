@@ -4,7 +4,9 @@ A Python library for interacting with [Ollama](https://ollama.ai) - a local AI m
 
 ## Features
 
+- **Interactive CLI**: Full-featured terminal interface with conversation management
 - **Chat Sessions**: Start and continue multi-turn conversations with persistent history stored as JSON
+- **Conversation Management**: Resume, view history, and delete past conversations
 - **Model Management**: Automatically detect installed models and manage model execution
 - **Resource Monitoring**: Track CPU and memory usage during model inference
 - **Flexible Execution**: Use Ollama's REST API or CLI interface automatically
@@ -38,7 +40,23 @@ pip install -r requirements.txt
 
 ## Quick Start
 
-### Starting a New Chat Session
+### Interactive CLI
+
+Run the interactive chat interface:
+
+```bash
+python ollama_chat.py
+```
+
+Features:
+- **Start a new chat**: Choose a model and begin a fresh conversation
+- **Resume existing chat**: Continue from where you left off with full conversation history
+- **Delete conversations**: Remove old conversations you no longer need
+- **Automatic summarization**: Conversations are summarized for easy identification
+
+### Using as a Library
+
+#### Starting a New Chat Session
 
 ```python
 from ollama_chat import start_chat_session
@@ -53,7 +71,7 @@ print(result['response'])  # Model's response
 print(result['session_name'])  # Session identifier for future conversations
 ```
 
-### Continuing a Chat Session
+#### Continuing a Chat Session
 
 ```python
 from ollama_chat import continue_chat_session
@@ -148,6 +166,9 @@ from src.api_client import OllamaAPIClient
 client = OllamaAPIClient()
 models = client.list_models()
 response = client.generate("smollm2:135m", "Your prompt here")
+
+# Default timeout increased to 600s for long-running generations
+response = client.chat("llama2", messages, timeout=600)
 ```
 
 ## API Reference
@@ -194,7 +215,8 @@ hello-ollama/
 │   ├── continue_chat_session.py # Example: continuing a session
 │   ├── server.py              # Example: server interaction
 │   └── resource_monitor.py    # Example: monitoring resources
-├── ollama_chat.py             # Public API functions
+├── .conversations/            # Stored chat sessions (auto-created)
+├── ollama_chat.py             # Interactive CLI and public API
 ├── requirements.txt           # Python dependencies
 └── README.md                  # This file
 ```
