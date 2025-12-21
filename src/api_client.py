@@ -62,14 +62,14 @@ class OllamaAPIClient:
         return self._request('GET', '/api/tags', timeout=timeout or 2)
 
     def generate(self, model: str, prompt: str, stream: bool = False,
-                 timeout: Optional[float] = 300) -> Dict:
+                 timeout: Optional[float] = 600) -> Dict:
         """Send a text prompt to generate a response.
 
         Args:
             model: Name of the model to use
             prompt: The prompt text to send
             stream: Whether to stream the response (not yet implemented)
-            timeout: Request timeout in seconds (default: 300s for generation)
+            timeout: Request timeout in seconds (default: 600s for generation)
 
         Returns:
             Dictionary with 'response' key containing generated text
@@ -86,10 +86,10 @@ class OllamaAPIClient:
             'stream': stream
         }
         return self._request('POST', '/api/generate', json_data=payload,
-                           timeout=timeout or 300)
+                           timeout=timeout)
 
     def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False,
-             timeout: Optional[float] = 300) -> Dict:
+             timeout: Optional[float] = 600) -> Dict:
         """Send chat messages to get a conversational response.
 
         Args:
@@ -113,7 +113,7 @@ class OllamaAPIClient:
             'stream': stream
         }
         return self._request('POST', '/api/chat', json_data=payload,
-                           timeout=timeout or 300)
+                           timeout=timeout)
 
     def _request(self, method: str, endpoint: str, json_data: Optional[Dict] = None,
                  timeout: float = 2) -> Dict:

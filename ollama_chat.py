@@ -124,12 +124,103 @@ def main():
     print(LLAMA)
     print("-" * 50)
 
-    # Ask user if they want a new chat or to resume
-    print("\nWhat would you like to do?")
-    print("1. Start a new chat")
-    print("2. Resume an existing chat")
+    # Main menu loop
+    while True:
+        # Ask user if they want a new chat or to resume
+        print("\nWhat would you like to do?")
+        print("1. Start a new chat")
+        print("2. Resume an existing chat")
+        print("3. Delete a conversation")
 
-    choice = get_input("\nEnter your choice (1-2): ")
+        choice = get_input("\nEnter your choice (1-3): ")
+
+        # Handle delete conversation option
+        if choice == "3":
+            # Delete a conversation
+            print("\n--- Delete a Conversation ---")
+
+            conversations_dir = ".conversations"
+            if not os.path.exists(conversations_dir):
+                print(f"Error: No conversations directory found at {conversations_dir}")
+                continue
+
+            # Get list of session files with their summaries
+            session_files = [f.replace('.json', '') for f in os.listdir(conversations_dir)
+                            if f.endswith('.json')]
+
+            if not session_files:
+                print("No existing conversations found.")
+                continue
+
+            # Load session info including summaries
+            session_info_list = []
+            for session_file in session_files:
+                try:
+                    info = ChatSession.get_session_info(session_file)
+                    if info:
+                        summary = info.get('conversation_summary')
+                        # Use summary if it exists and is not empty, otherwise use session name
+                        if summary:
+                            display_text = summary
+                        else:
+                            display_text = session_file
+                        session_info_list.append({
+                            'name': session_file,
+                            'summary': display_text
+                        })
+                    else:
+                        # Fallback if get_session_info returns None
+                        session_info_list.append({
+                            'name': session_file,
+                            'summary': session_file
+                        })
+                except Exception as e:
+                    # Fallback on error
+                    print(f"Debug: Error loading {session_file}: {e}")
+                    session_info_list.append({
+                        'name': session_file,
+                        'summary': session_file
+                    })
+
+            # Display sessions with summaries
+            print("\nAvailable conversations:")
+            for idx, session_info in enumerate(session_info_list, 1):
+                print(f"{idx}. {session_info['summary']}")
+
+            # Let user select which conversation to delete
+            while True:
+                selection = get_input(f"\nSelect a conversation to delete (1-{len(session_info_list)}): ")
+                try:
+                    selected_idx = int(selection) - 1
+                    if 0 <= selected_idx < len(session_info_list):
+                        session_to_delete = session_info_list[selected_idx]['name']
+                        break
+                    else:
+                        print(f"Please enter a number between 1 and {len(session_info_list)}")
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+
+            # Ask for confirmation
+            print(f"\nYou are about to delete: {session_info_list[selected_idx]['summary']}")
+            confirmation = get_input("Are you sure you want to delete this conversation? (yes/no): ")
+
+            if confirmation.lower() in ['yes', 'y']:
+                if ChatSession.delete_session(session_to_delete):
+                    print(f"\nConversation '{session_to_delete}' has been deleted.")
+                else:
+                    print(f"\nError: Could not delete conversation '{session_to_delete}'.")
+            else:
+                print("\nDeletion cancelled.")
+
+            # Return to main menu
+            continue
+
+        # Break out of menu loop for options 1 and 2
+        elif choice in ["1", "2"]:
+            break
+        else:
+            print("Invalid choice. Please try again.")
+            continue
 
     if choice == "1":
         # Start a new chat
@@ -260,10 +351,6 @@ def main():
             temp_session.print_conversation()
         except Exception as e:
             print(f"Warning: Could not load conversation history: {e}")
-
-    else:
-        print("Invalid choice. Exiting.")
-        sys.exit(1)
 
     # Main chat loop
     print("\n" + "=" * 50)
