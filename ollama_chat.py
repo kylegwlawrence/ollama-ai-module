@@ -38,6 +38,9 @@ def start_chat_session(prompt: str, model_name: str, system_prompt: str = None) 
 
     # Send a new message
     response = session.send_message(prompt)
+
+    # Summarize the conversation
+    session.summarize_conversation()
     
     # Return the response and the session name
     return {"response": response, "session_name": session.session_name}
@@ -80,6 +83,9 @@ def continue_chat_session(prompt: str, session_name: str) -> dict[str, str]:
     # Send new message
     response = session.send_message(prompt)
 
+    # Summarize the conversation
+    session.summarize_conversation()
+
     # Return the response and the session name
     return {"response": response, "session_name": session.session_name}
 
@@ -106,10 +112,43 @@ def main():
     if choice == "1":
         # Start a new chat
         print("\n--- Starting New Chat ---")
-        model_name = input("Enter model name (e.g., 'smollm2:360m', 'llama2'): ").strip()
-        if not model_name:
-            model_name = "smollm2:360m"
-            print(f"Using default model: {model_name}")
+
+        # Get list of installed models
+        try:
+            server = OllamaServer()
+            installed_models = sorted(server.get_installed_models())
+
+            if not installed_models:
+                print("No models found. Please install a model first.")
+                sys.exit(1)
+
+            # Display models with numbers
+            print("\nAvailable models:")
+            for idx, model in enumerate(installed_models, 1):
+                print(f"{idx}. {model}")
+
+            # Let user select
+            while True:
+                try:
+                    selection = input(f"\nSelect a model (1-{len(installed_models)}): ").strip()
+                    selected_idx = int(selection) - 1
+                    if 0 <= selected_idx < len(installed_models):
+                        model_name = installed_models[selected_idx]
+                        break
+                    else:
+                        print(f"Please enter a number between 1 and {len(installed_models)}")
+                except ValueError:
+                    print("Invalid input. Please enter a number.")
+
+            print(f"\nUsing model: {model_name}")
+
+        except Exception as e:
+            print(f"Error fetching models: {e}")
+            print("Falling back to manual entry.")
+            model_name = input("Enter model name (e.g., 'smollm2:360m', 'llama2'): ").strip()
+            if not model_name:
+                model_name = "smollm2:360m"
+                print(f"Using default model: {model_name}")
 
         system_prompt = input("Enter system prompt (press Enter for default): ").strip()
         if not system_prompt:

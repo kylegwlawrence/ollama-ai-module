@@ -65,6 +65,42 @@ class ChatSession:
     with open(session_path, 'w', encoding='utf-8') as f:
       json.dump(session_data, f, indent=2, ensure_ascii=False)
 
+  def _update_session(self, **fields) -> None:
+    """Update specific fields in an existing session file without overwriting.
+
+    Args:
+      **fields: Key-value pairs of fields to update in the session file.
+
+    Raises:
+      ValueError: If session file doesn't exist.
+
+    Example:
+      >>> session._update_session(conversation_summary="New summary")
+      >>> session._update_session(last_updated=datetime.now().isoformat(), messages=new_messages)
+    """
+    session_path = self._get_session_path()
+
+    if not session_path.exists():
+      raise ValueError(f"Cannot update session '{self.session_name}' - file does not exist")
+
+    # Load existing session data
+    try:
+      with open(session_path, 'r', encoding='utf-8') as f:
+        session_data = json.load(f)
+    except (json.JSONDecodeError, IOError) as e:
+      raise ValueError(f"Error loading session '{self.session_name}': {e}")
+
+    # Update with new fields
+    session_data.update(fields)
+
+    # Always update the last_updated timestamp
+    session_data['last_updated'] = datetime.now().isoformat()
+
+    # Save back to file
+    with open(session_path, 'w', encoding='utf-8') as f:
+      json.dump(session_data, f, indent=2, ensure_ascii=False)
+
+
   def send_message(self, user_message: str) -> str:
     """Send a message with chat history, get a response, and update chat history
 
@@ -116,6 +152,54 @@ class ChatSession:
 
     # Save session after updating system prompt
     self._save_session()
+
+  def summarize_conversation(self, model_name='qwen3:0.6b', max_word_count=8) -> None:
+    """Generate a concise summary of the conversation and save it to the session file.
+
+    Uses the gemma3:270m model to create an 5-word-or-less summary that
+    describes the conversation topic based on the first user message.
+
+    Args:
+      model_name: The name of the model to use for summarization (default: 'qwen3:0.6b').
+      max_word_count: Maximum number of words in the summary (default: 8).
+
+    Returns:
+      None
+
+    Raises:
+      ValueError: If no user messages exist in the conversation.
+
+    Example:
+      >>> session.summarize_conversation()
+      >>> session.summarize_conversation(model_name='smollm2:135m', max_word_count=5)
+    """
+    from src.server import OllamaServer
+    from src.model import OllamaModel
+
+    # Find the first user message from current session messages
+    user_messages = [m for m in self.messages if m.get('role') == 'user']
+
+    if not user_messages:
+      raise ValueError(f"No user messages found in session '{self.session_name}'")
+
+    first_user_message = user_messages[0]['content']
+
+    # Initialize server and model for summarization
+    server = OllamaServer()
+    model = OllamaModel(model_name, server)
+
+    # Create a prompt that instructs the model to summarize concisely
+    prompt = f"""Your job is to take long strings of text and summarize the contents of the text into a maximum of {max_word_count} words.
+    Follow those rules and summarize the following text: {first_user_message}"""
+
+    # Get the summary from the model
+    summary = model.prompt_generate_api(prompt)
+
+    # Clean up the response (strip whitespace and newlines)
+    summary = summary.strip()
+
+    # Update the session file with the summary
+    self._update_session(conversation_summary=summary)
 
   # Static methods for session management
   @staticmethod
