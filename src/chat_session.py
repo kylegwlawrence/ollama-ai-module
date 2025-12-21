@@ -5,6 +5,8 @@ from pathlib import Path
 
 from src.model import OllamaModel
 
+CHAT_SUMMARY_MODEL = 'gemma3:1b'
+
 class ChatSession:
   """Manages a conversation session with persistence."""
 
@@ -148,9 +150,9 @@ class ChatSession:
   def print_conversation(self) -> None:
     """Print the conversation history in a nicely formatted way.
 
-    Displays all messages with clear role labels and formatting.
-    System messages are shown in brackets, user messages are prefixed with 'You:',
-    and assistant messages are prefixed with 'Assistant:'.
+    Displays all messages with the same formatting as the live chat session,
+    making it look like the conversation is continuing from where it left off.
+    System messages are skipped in the display.
     """
     if not self.messages:
       print("No conversation history.")
@@ -165,13 +167,16 @@ class ChatSession:
       content = message.get('content', '')
 
       if role == 'system':
-        print(f"⚙️  [System]: {content}\n")
+        # Skip system messages in the display
+        continue
       elif role == 'user':
         print(f"👤 You: {content}\n")
       elif role == 'assistant':
-        print(f"🤖 Assistant: {content}\n")
+        print(f"🤖 Assistant: {content}")
+        print(f"\n{'─' * 40}")
+        print(f"  model: {self.model.model_name}\n")
       else:
-        print(f"❓ [{role}]: {content}\n")
+        print(f"[{role}]: {content}\n")
 
     print("=" * 50)
     print("END OF HISTORY")
@@ -193,7 +198,7 @@ class ChatSession:
     # Add new system message at the beginning
     self.messages.insert(0, {'role': 'system', 'content': system_prompt})
 
-  def summarize_conversation(self, model_name='qwen3:0.6b', max_word_count=8) -> None:
+  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=8) -> None:
     """Generate a concise summary of the entire conversation and save it to the session file.
 
     Analyzes all user and assistant messages to create a summary that describes
@@ -233,21 +238,23 @@ class ChatSession:
     server = OllamaServer()
     model = OllamaModel(model_name, server)
 
-    # Create a prompt that instructs the model to summarize the entire conversation
-    prompt = f"""You are a conversation summarization assistant. You strive to be as good as Sonnet4.5 at summarizing text. Your task is to analyze the CONVERSATION THREAD below and create a concise summary that captures the core topic of discussion.
+    # Create a prompt that instructs the model to summarize the conversation with heavy focus on early messages
+    prompt = f"""You are a conversation summarization assistant. Your task is to create a concise summary focused on the ORIGINAL topic from the start of the conversation.
 
 Instructions:
-- Read through the entire conversation between User and Assistant
-- Identify the main topic, question, or problem being discussed
-- Focus on WHAT is being discussed, not the back-and-forth details
-- Create a summary in {max_word_count} words or fewer
-- Use clear language and descriptive language, and capture both the breadth and specificity of the topic 
+- Create a summary of the conversation in {max_word_count} words or fewer
+- **FOCUS PRIMARILY on the first 3-5 message exchanges** - these contain the main topic and original intent
+- The beginning of the conversation is the most important part for the summary
+- Later messages may elaborate, drift, or change topics - de-emphasize these
+- Identify the main topic, question, or problem from the BEGINNING of the conversation
+- If the conversation shifted topics, summarize the ORIGINAL topic, not where it ended
+- Use clear, descriptive language that captures the primary initial topic
 - Output ONLY the summary text, nothing else
 
 CONVERSATION THREAD:
 {conversation_text}
 
-Summary ({max_word_count} words max):"""
+Summary ({max_word_count} words max, focusing on the ORIGINAL topic from the start):"""
 
     # Get the summary from the model
     summary = model.prompt_generate_api(prompt)

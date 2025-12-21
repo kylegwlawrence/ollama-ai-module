@@ -272,7 +272,7 @@ def main():
 
     while True:
         # Get user input (handles exit/quit/Ctrl+C automatically)
-        user_input = get_input("You: ", session_name)
+        user_input = get_input("👤 You: ", session_name)
 
         if not user_input:
             continue
@@ -294,7 +294,7 @@ def main():
                     session_info = ChatSession.get_session_info(session_name)
                     model_name = session_info.get('model', 'unknown')
 
-            print(f"\nAssistant: {response}")
+            print(f"\n🤖 Assistant: {response}")
             print(f"\n{'─' * 40}")
             print(f"  model: {model_name}")
             print()
