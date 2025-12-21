@@ -234,14 +234,14 @@ class ChatSession:
     model = OllamaModel(model_name, server)
 
     # Create a prompt that instructs the model to summarize the entire conversation
-    prompt = f"""You are a conversation summarization assistant. Your task is to analyze the CONVERSATION THREAD below and create a concise summary that captures the core topic of discussion.
+    prompt = f"""You are a conversation summarization assistant. You strive to be as good as Sonnet4.5 at summarizing text. Your task is to analyze the CONVERSATION THREAD below and create a concise summary that captures the core topic of discussion.
 
 Instructions:
 - Read through the entire conversation between User and Assistant
 - Identify the main topic, question, or problem being discussed
 - Focus on WHAT is being discussed, not the back-and-forth details
 - Create a summary in {max_word_count} words or fewer
-- Use clear language, but be broad enough to correctly describe the conversation. Assume the conversation will continue. 
+- Use clear language and descriptive language, and capture both the breadth and specificity of the topic 
 - Output ONLY the summary text, nothing else
 
 CONVERSATION THREAD:
@@ -337,7 +337,8 @@ Summary ({max_word_count} words max):"""
           'last_updated': data.get('last_updated'),
           'system_prompt': data.get('system_prompt'),
           'message_count': len(data.get('messages', [])),
-          'messages': data.get('messages', [])
+          'messages': data.get('messages', []),
+          'conversation_summary': data.get('conversation_summary')
         }
     except (json.JSONDecodeError, IOError):
       return None

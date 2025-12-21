@@ -2,6 +2,7 @@ from src.server import OllamaServer
 from src.model import OllamaModel
 from src.chat_session import ChatSession
 from src.utilities import generate_human_id
+from src.llama_art import LLAMA, GOODBYE_LLAMA
 
 def start_chat_session(prompt: str, model_name: str, system_prompt: str = None) -> dict[str, str]:
     """
@@ -84,6 +85,33 @@ def continue_chat_session(prompt: str, session_name: str) -> dict[str, str]:
     return {"response": response, "session_name": session.session_name}
 
 
+def graceful_exit(session_name=None):
+    """Handle graceful exit with optional conversation summarization."""
+    print(GOODBYE_LLAMA)
+    if session_name:
+        try:
+            session_info = ChatSession.get_session_info(session_name)
+            model_name = session_info["model"]
+            server = OllamaServer()
+            model = OllamaModel(model_name, server)
+            session = ChatSession(model, session_name)
+            session.summarize_conversation()
+        except Exception as e:
+            print(f"Warning: Could not generate summary: {e}")
+        print(f"Your conversation has been saved as: {session_name}")
+    import sys
+    sys.exit(0)
+
+def get_input(prompt_text, session_name=None):
+    """Get user input with automatic exit handling for 'quit', 'exit', and Ctrl+C."""
+    try:
+        user_input = input(prompt_text).strip()
+        if user_input.lower() in ['quit', 'exit']:
+            graceful_exit(session_name)
+        return user_input
+    except (KeyboardInterrupt, EOFError):
+        graceful_exit(session_name)
+
 def main():
     """
     Interactive CLI for chatting with Ollama models.
@@ -93,7 +121,7 @@ def main():
     import os
     import sys
 
-    print("Welcome to Ollama Chat!")
+    print(LLAMA)
     print("-" * 50)
 
     # Ask user if they want a new chat or to resume
@@ -101,7 +129,7 @@ def main():
     print("1. Start a new chat")
     print("2. Resume an existing chat")
 
-    choice = input("\nEnter your choice (1-2): ").strip()
+    choice = get_input("\nEnter your choice (1-2): ")
 
     if choice == "1":
         # Start a new chat
@@ -123,8 +151,8 @@ def main():
 
             # Let user select
             while True:
+                selection = get_input(f"\nSelect a model (1-{len(installed_models)}): ")
                 try:
-                    selection = input(f"\nSelect a model (1-{len(installed_models)}): ").strip()
                     selected_idx = int(selection) - 1
                     if 0 <= selected_idx < len(installed_models):
                         model_name = installed_models[selected_idx]
@@ -139,12 +167,12 @@ def main():
         except Exception as e:
             print(f"Error fetching models: {e}")
             print("Falling back to manual entry.")
-            model_name = input("Enter model name (e.g., 'smollm2:360m', 'llama2'): ").strip()
+            model_name = get_input("Enter model name (e.g., 'smollm2:360m', 'llama2'): ")
             if not model_name:
                 model_name = "smollm2:360m"
                 print(f"Using default model: {model_name}")
 
-        system_prompt = input("Enter system prompt (press Enter for default): ").strip()
+        system_prompt = get_input("Enter system prompt (press Enter for default): ")
         if not system_prompt:
             system_prompt = "You are a helpful assistant."
             print(f"Using default system prompt: {system_prompt}")
@@ -160,7 +188,7 @@ def main():
             print(f"Error: No conversations directory found at {conversations_dir}")
             sys.exit(1)
 
-        # Get list of session files
+        # Get list of session files with their summaries
         session_files = [f.replace('.json', '') for f in os.listdir(conversations_dir)
                         if f.endswith('.json')]
 
@@ -168,23 +196,53 @@ def main():
             print("No existing conversations found.")
             sys.exit(1)
 
-        # Display sessions with numbers
+        # Load session info including summaries
+        session_info_list = []
+        for session_file in session_files:
+            try:
+                info = ChatSession.get_session_info(session_file)
+                if info:
+                    summary = info.get('conversation_summary')
+                    # Use summary if it exists and is not empty, otherwise use session name
+                    if summary:
+                        display_text = summary
+                    else:
+                        display_text = session_file
+                    session_info_list.append({
+                        'name': session_file,
+                        'summary': display_text
+                    })
+                else:
+                    # Fallback if get_session_info returns None
+                    session_info_list.append({
+                        'name': session_file,
+                        'summary': session_file
+                    })
+            except Exception as e:
+                # Fallback on error
+                print(f"Debug: Error loading {session_file}: {e}")
+                session_info_list.append({
+                    'name': session_file,
+                    'summary': session_file
+                })
+
+        # Display sessions with summaries
         print("\nAvailable conversations:")
-        for idx, session in enumerate(session_files, 1):
-            print(f"{idx}. {session}")
+        for idx, session_info in enumerate(session_info_list, 1):
+            print(f"{idx}. {session_info['summary']}")
 
         # Let user select
         while True:
+            selection = get_input(f"\nSelect a conversation (1-{len(session_info_list)}): ")
             try:
-                selection = input(f"\nSelect a conversation (1-{len(session_files)}): ").strip()
                 selected_idx = int(selection) - 1
-                if 0 <= selected_idx < len(session_files):
-                    session_name = session_files[selected_idx]
+                if 0 <= selected_idx < len(session_info_list):
+                    session_name = session_info_list[selected_idx]['name']
                     break
                 else:
-                    print(f"Please enter a number between 1 and {len(session_files)}")
-            except (ValueError, KeyboardInterrupt):
-                print("\nInvalid input. Please enter a number.")
+                    print(f"Please enter a number between 1 and {len(session_info_list)}")
+            except ValueError:
+                print("Invalid input. Please enter a number.")
 
         print(f"\nResuming conversation: {session_name}")
 
@@ -212,65 +270,38 @@ def main():
     print("Chat started! Type 'exit' or 'quit' to end the conversation.")
     print("=" * 50 + "\n")
 
-    try:
-        while True:
-            # Get user input
-            user_input = input("You: ").strip()
+    while True:
+        # Get user input (handles exit/quit/Ctrl+C automatically)
+        user_input = get_input("You: ", session_name)
 
-            if user_input.lower() in ['exit', 'quit']:
-                print("\nEnding chat session. Goodbye!")
-                if session_name:
-                    # Summarize the conversation before exiting
-                    try:
-                        print(f"Saving conversation...")
-                        session_info = ChatSession.get_session_info(session_name)
-                        model_name = session_info["model"]
-                        server = OllamaServer()
-                        model = OllamaModel(model_name, server)
-                        session = ChatSession(model, session_name)
-                        session.summarize_conversation()
-                        print(f"Your conversation has been saved as: {session_name}")
-                    except Exception as e:
-                        print(f"Warning: Could not generate summary: {e}")
-                    
-                break
+        if not user_input:
+            continue
 
-            if not user_input:
-                continue
+        # Send message and get response
+        try:
+            if session_name is None:
+                # First message of a new chat
+                result = start_chat_session(user_input, model_name, system_prompt)
+                session_name = result['session_name']
+                response = result['response']
+                print(f"\n[Session created: {session_name}]")
+            else:
+                # Continuing chat
+                result = continue_chat_session(user_input, session_name)
+                response = result['response']
+                # Get model name for resumed sessions
+                if 'model_name' not in locals():
+                    session_info = ChatSession.get_session_info(session_name)
+                    model_name = session_info.get('model', 'unknown')
 
-            # Send message and get response
-            try:
-                if session_name is None:
-                    # First message of a new chat
-                    result = start_chat_session(user_input, model_name, system_prompt)
-                    session_name = result['session_name']
-                    response = result['response']
-                    print(f"\n[Session created: {session_name}]")
-                else:
-                    # Continuing chat
-                    result = continue_chat_session(user_input, session_name)
-                    response = result['response']
+            print(f"\nAssistant: {response}")
+            print(f"\n{'─' * 40}")
+            print(f"  model: {model_name}")
+            print()
 
-                print(f"\nAssistant: {response}\n")
-
-            except Exception as e:
-                print(f"\nError: {e}")
-                print("Please try again.\n")
-
-    except KeyboardInterrupt:
-        print("\n\nChat interrupted. Goodbye!")
-        if session_name:
-            # Summarize the conversation before exiting
-            try:
-                session_info = ChatSession.get_session_info(session_name)
-                model_name = session_info["model"]
-                server = OllamaServer()
-                model = OllamaModel(model_name, server)
-                session = ChatSession(model, session_name)
-                session.summarize_conversation()
-            except Exception as e:
-                print(f"Warning: Could not generate summary: {e}")
-            print(f"Your conversation has been saved as: {session_name}")
+        except Exception as e:
+            print(f"\nError: {e}")
+            print("Please try again.\n")
 
 
 if __name__ == "__main__":
