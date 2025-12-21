@@ -384,7 +384,7 @@ def main():
             print(f"\n🤖 Assistant: {response}")
             print(f"\n{'─' * 40}")
             print(f"  model: {model_name}")
-            print()
+            print(f"{'─' * 40}\n")
 
         except Exception as e:
             print(f"\nError: {e}")

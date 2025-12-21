@@ -174,7 +174,8 @@ class ChatSession:
       elif role == 'assistant':
         print(f"🤖 Assistant: {content}")
         print(f"\n{'─' * 40}")
-        print(f"  model: {self.model.model_name}\n")
+        print(f"  model: {self.model.model_name}")
+        print(f"{'─' * 40}\n")
       else:
         print(f"[{role}]: {content}\n")
 
