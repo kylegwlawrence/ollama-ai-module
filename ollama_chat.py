@@ -1,3 +1,4 @@
+import sys
 from src.server import OllamaServer
 from src.model import OllamaModel
 from src.chat_session import ChatSession
@@ -98,8 +99,8 @@ def graceful_exit(session_name=None):
             session.summarize_conversation()
         except Exception as e:
             print(f"Warning: Could not generate summary: {e}")
-        print(f"Your conversation has been saved as: {session_name}")
-    import sys
+        print(f"Conversation saved, byeee")
+    
     sys.exit(0)
 
 def get_input(prompt_text, session_name=None):
@@ -189,7 +190,13 @@ def main():
 
             # Let user select which conversation to delete
             while True:
-                selection = get_input(f"\nSelect a conversation to delete (1-{len(session_info_list)}): ")
+                selection = get_input(f"\nSelect a conversation to delete (1-{len(session_info_list)}) or 'back' to return: ")
+
+                # Check if user wants to go back
+                if selection.lower() == 'back':
+                    print("\nReturning to main menu...")
+                    break
+
                 try:
                     selected_idx = int(selection) - 1
                     if 0 <= selected_idx < len(session_info_list):
@@ -198,7 +205,11 @@ def main():
                     else:
                         print(f"Please enter a number between 1 and {len(session_info_list)}")
                 except ValueError:
-                    print("Invalid input. Please enter a number.")
+                    print("Invalid input. Please enter a number or 'back'.")
+
+            # If user chose 'back', skip confirmation and return to main menu
+            if selection.lower() == 'back':
+                continue
 
             # Ask for confirmation
             print(f"\nYou are about to delete: {session_info_list[selected_idx]['summary']}")
@@ -215,13 +226,116 @@ def main():
             # Return to main menu
             continue
 
-        # Break out of menu loop for options 1 and 2
-        elif choice in ["1", "2"]:
+        # Break out of menu loop for option 1
+        elif choice == "1":
             break
+        # Handle option 2 inside the loop
+        elif choice == "2":
+            # Resume existing chat - handle inside loop, break when session is selected
+            pass  # Will be handled below
         else:
             print("Invalid choice. Please try again.")
             continue
 
+        # Option 2 handling (inside the main menu loop)
+        if choice == "2":
+            # Resume existing chat
+            print("\n--- Resume Existing Chat ---")
+
+            conversations_dir = ".conversations"
+            if not os.path.exists(conversations_dir):
+                print(f"Error: No conversations directory found at {conversations_dir}")
+                continue
+
+            # Get list of session files with their summaries
+            session_files = [f.replace('.json', '') for f in os.listdir(conversations_dir)
+                            if f.endswith('.json')]
+
+            if not session_files:
+                print("No existing conversations found.")
+                continue
+
+            # Load session info including summaries
+            session_info_list = []
+            for session_file in session_files:
+                try:
+                    info = ChatSession.get_session_info(session_file)
+                    if info:
+                        summary = info.get('conversation_summary')
+                        # Use summary if it exists and is not empty, otherwise use session name
+                        if summary:
+                            display_text = summary
+                        else:
+                            display_text = session_file
+                        session_info_list.append({
+                            'name': session_file,
+                            'summary': display_text
+                        })
+                    else:
+                        # Fallback if get_session_info returns None
+                        session_info_list.append({
+                            'name': session_file,
+                            'summary': session_file
+                        })
+                except Exception as e:
+                    # Fallback on error
+                    print(f"Debug: Error loading {session_file}: {e}")
+                    session_info_list.append({
+                        'name': session_file,
+                        'summary': session_file
+                    })
+
+            # Display sessions with summaries
+            print("\nAvailable conversations:")
+            for idx, session_info in enumerate(session_info_list, 1):
+                print(f"{idx}. {session_info['summary']}")
+
+            # Let user select
+            session_selected = False
+            while True:
+                selection = get_input(f"\nSelect a conversation (1-{len(session_info_list)}) or 'back' to return: ")
+
+                # Check if user wants to go back
+                if selection.lower() == 'back':
+                    print("\nReturning to main menu...")
+                    break
+
+                try:
+                    selected_idx = int(selection) - 1
+                    if 0 <= selected_idx < len(session_info_list):
+                        session_name = session_info_list[selected_idx]['name']
+                        session_selected = True
+                        break
+                    else:
+                        print(f"Please enter a number between 1 and {len(session_info_list)}")
+                except ValueError:
+                    print("Invalid input. Please enter a number or 'back'.")
+
+            # If user chose 'back', return to main menu
+            if not session_selected:
+                continue
+
+            print(f"\nResuming conversation: {session_name}")
+
+            # Print conversation history to help user feel back in context
+            try:
+                session_information = ChatSession.get_session_info(session_name)
+                session_model = session_information["model"]
+
+                # Instantiate objects to load the session
+                server = OllamaServer()
+                model = OllamaModel(session_model, server)
+                temp_session = ChatSession(model, session_name)
+
+                # Print the conversation history
+                temp_session.print_conversation()
+            except Exception as e:
+                print(f"Warning: Could not load conversation history: {e}")
+
+            # Break out of main menu loop to start chatting
+            break
+
+    # Handle option 1 (outside the loop, after break)
     if choice == "1":
         # Start a new chat
         print("\n--- Starting New Chat ---")
@@ -269,88 +383,6 @@ def main():
             print(f"Using default system prompt: {system_prompt}")
 
         session_name = None
-
-    elif choice == "2":
-        # Resume existing chat
-        print("\n--- Resume Existing Chat ---")
-
-        conversations_dir = ".conversations"
-        if not os.path.exists(conversations_dir):
-            print(f"Error: No conversations directory found at {conversations_dir}")
-            sys.exit(1)
-
-        # Get list of session files with their summaries
-        session_files = [f.replace('.json', '') for f in os.listdir(conversations_dir)
-                        if f.endswith('.json')]
-
-        if not session_files:
-            print("No existing conversations found.")
-            sys.exit(1)
-
-        # Load session info including summaries
-        session_info_list = []
-        for session_file in session_files:
-            try:
-                info = ChatSession.get_session_info(session_file)
-                if info:
-                    summary = info.get('conversation_summary')
-                    # Use summary if it exists and is not empty, otherwise use session name
-                    if summary:
-                        display_text = summary
-                    else:
-                        display_text = session_file
-                    session_info_list.append({
-                        'name': session_file,
-                        'summary': display_text
-                    })
-                else:
-                    # Fallback if get_session_info returns None
-                    session_info_list.append({
-                        'name': session_file,
-                        'summary': session_file
-                    })
-            except Exception as e:
-                # Fallback on error
-                print(f"Debug: Error loading {session_file}: {e}")
-                session_info_list.append({
-                    'name': session_file,
-                    'summary': session_file
-                })
-
-        # Display sessions with summaries
-        print("\nAvailable conversations:")
-        for idx, session_info in enumerate(session_info_list, 1):
-            print(f"{idx}. {session_info['summary']}")
-
-        # Let user select
-        while True:
-            selection = get_input(f"\nSelect a conversation (1-{len(session_info_list)}): ")
-            try:
-                selected_idx = int(selection) - 1
-                if 0 <= selected_idx < len(session_info_list):
-                    session_name = session_info_list[selected_idx]['name']
-                    break
-                else:
-                    print(f"Please enter a number between 1 and {len(session_info_list)}")
-            except ValueError:
-                print("Invalid input. Please enter a number.")
-
-        print(f"\nResuming conversation: {session_name}")
-
-        # Print conversation history to help user feel back in context
-        try:
-            session_information = ChatSession.get_session_info(session_name)
-            session_model = session_information["model"]
-
-            # Instantiate objects to load the session
-            server = OllamaServer()
-            model = OllamaModel(session_model, server)
-            temp_session = ChatSession(model, session_name)
-
-            # Print the conversation history
-            temp_session.print_conversation()
-        except Exception as e:
-            print(f"Warning: Could not load conversation history: {e}")
 
     # Main chat loop
     print("\n" + "=" * 50)
