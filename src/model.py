@@ -5,7 +5,7 @@ from datetime import datetime, timedelta
 from typing import Optional, Dict, Tuple, Union, List
 
 from src.server import OllamaServer
-from src.api_client import OllamaConnectionError, OllamaTimeoutError, OllamaHTTPError, OllamaAPIException
+from src.api_client import OllamaConnectionError, OllamaTimeoutError, OllamaAPIException
 from src.resource_monitor import ResourceMonitor
 
 class OllamaModel:
