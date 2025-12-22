@@ -120,6 +120,7 @@ class OllamaServer:
         subprocess.CalledProcessError: If the ollama list command fails.
         FileNotFoundError: If ollama is not installed or not in PATH.
     """
+    import re
     models = self.get_installed_models()
     grouped = {}
 
@@ -128,22 +129,21 @@ class OllamaServer:
         parts = model.split(':')
         size_str = parts[1] if len(parts) > 1 else 'unknown'
 
-        # Convert size to billions
+        # Convert size to billions using regex to find size pattern
+        size_numeric = 0.0
         if size_str != 'unknown':
-            size_value = float(size_str[:-1])  # Remove the letter and convert to float
-            unit = size_str[-1].lower()  # Get the last character (b or m)
+            # Match pattern like "135m", "7b", "1.5b" etc. at the beginning or middle of tag
+            match = re.search(r'(\d+(?:\.\d+)?)(b|m)', size_str.lower())
+            if match:
+                size_value = float(match.group(1))
+                unit = match.group(2)
 
-            if unit == 'b':
-                # Already in billions
-                size_numeric = size_value
-            elif unit == 'm':
-                # Convert millions to billions
-                size_numeric = size_value / 1000
-            else:
-                # Unknown unit, skip
-                continue
-        else:
-            size_numeric = 0.0
+                if unit == 'b':
+                    # Already in billions
+                    size_numeric = size_value
+                elif unit == 'm':
+                    # Convert millions to billions
+                    size_numeric = size_value / 1000
 
         if size_numeric not in grouped:
             grouped[size_numeric] = []

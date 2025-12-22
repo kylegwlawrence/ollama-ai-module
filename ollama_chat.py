@@ -356,10 +356,60 @@ def main():
                 print("No models found. Please install a model first.")
                 sys.exit(1)
 
-            # Display models with numbers
-            print("\nAvailable models:")
+            # Get size grouping for display
+            models_by_size = server.get_models_grouped_by_size()
+
+            # Create a mapping of model name to its size
+            model_size_map = {}
+            for size, models in models_by_size.items():
+                for model in models:
+                    model_size_map[model] = size
+
+            # Display models in a table format
+            print("\nAvailable models:\n")
+            print(f"  {'':<4} {'Base Name':<20} {'Size':<6} {'Type':<10} {'Quant':<10} {'Full Name':<40}")
+            print("  " + "─" * 92)
+
             for idx, model in enumerate(installed_models, 1):
-                print(f"{idx}. {model}")
+                # Extract base name
+                base_name = model.split(':')[0]
+
+                # Get size in readable format
+                size_value = model_size_map.get(model, 0.0)
+                if size_value < 1.0:
+                    size_str = f"{int(size_value * 1000)}M"
+                else:
+                    size_str = f"{size_value:.1f}B"
+
+                # Extract type - only show specific model types
+                tag = model.split(':')[1] if ':' in model else ''
+                tag_lower = tag.lower()
+
+                # Define allowed types and their variations
+                type_keywords = {
+                    'distill': ['distill', 'distilled'],
+                    'thinking': ['thinking', 'think'],
+                    'instruct': ['instruct', 'instruction'],
+                    'code': ['code', 'coder', 'coding'],
+                    'chat': ['chat']
+                }
+
+                # Search for any of the allowed types in the tag
+                type_str = ""
+                for type_name, variations in type_keywords.items():
+                    if any(variant in tag_lower for variant in variations):
+                        type_str = type_name
+                        break
+
+                # Extract quantization (q-tag like q8_0, q4_K_M)
+                import re
+                quant_match = re.search(r'(q\d+[_a-zA-Z0-9]*)', tag_lower)
+                quant_str = quant_match.group(1) if quant_match else ""
+
+                print(f"  {idx:<4} {base_name:<20} {size_str:<6} {type_str:<10} {quant_str:<10} {model:<40}")
+                # Add a subtle separator between rows
+                if idx < len(installed_models):
+                    print("  " + "─" * 92)
 
             # Let user select
             while True:
