@@ -64,18 +64,18 @@ class OllamaAPIClient:
         """
         return self._request('GET', '/api/tags', timeout=timeout)
 
-    def generate(self, model: str, prompt: str, stream: bool = False,
-                 num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = TIMEOUT) -> Dict:
+    def generate(self, model: str, prompt: str, stream: bool = False, **kwargs) -> Dict:
         """Send a text prompt to generate a response.
 
         Args:
             model: Name of the model to use
             prompt: The prompt text to send
             stream: Whether to stream the response (not yet implemented)
-            num_ctx: Context window size for the model
-            num_predict: Maximum tokens allowed in the response (optional)
-            suffix: Text to append after the generated response (optional)
-            timeout: Request timeout in seconds (default: 600s for generation)
+            **kwargs: Optional parameters including:
+                num_ctx: Context window size for the model
+                num_predict: Maximum tokens allowed in the response
+                suffix: Text to append after the generated response
+                timeout: Request timeout in seconds (default: 3600s)
 
         Returns:
             Dictionary with 'response' key containing generated text
@@ -86,29 +86,28 @@ class OllamaAPIClient:
             OllamaHTTPError: If API returns non-200 status
             OllamaAPIException: If response cannot be parsed
         """
+        timeout = kwargs.pop('timeout', TIMEOUT)
         payload = {
             'model': model,
             'prompt': prompt,
             'stream': stream
         }
-        self._add_num_ctx_option(payload, num_ctx)
-        self._add_num_predict_option(payload, num_predict)
-        self._add_suffix_option(payload, suffix)
+        self._build_options(payload, kwargs)
         return self._request('POST', '/api/generate', json_data=payload,
                            timeout=timeout)
 
-    def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False,
-             num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = TIMEOUT) -> Dict:
+    def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False, **kwargs) -> Dict:
         """Send chat messages to get a conversational response.
 
         Args:
             model: Name of the model to use
             messages: List of message dicts with 'role' and 'content' keys
             stream: Whether to stream the response (not yet implemented)
-            num_ctx: Context window size for the model
-            num_predict: Maximum tokens allowed in the response (optional)
-            suffix: Text to append after the generated response (optional)
-            timeout: Request timeout in seconds (default: 300s for chat)
+            **kwargs: Optional parameters including:
+                num_ctx: Context window size for the model
+                num_predict: Maximum tokens allowed in the response
+                suffix: Text to append after the generated response
+                timeout: Request timeout in seconds (default: 3600s)
 
         Returns:
             Dictionary with 'message' key containing response
@@ -119,50 +118,42 @@ class OllamaAPIClient:
             OllamaHTTPError: If API returns non-200 status
             OllamaAPIException: If response cannot be parsed
         """
+        timeout = kwargs.pop('timeout', TIMEOUT)
         payload = {
             'model': model,
             'messages': messages,
             'stream': stream
         }
-        self._add_num_ctx_option(payload, num_ctx)
-        self._add_num_predict_option(payload, num_predict)
-        self._add_suffix_option(payload, suffix)
+        self._build_options(payload, kwargs)
         return self._request('POST', '/api/chat', json_data=payload,
                            timeout=timeout)
 
-    def _add_num_ctx_option(self, payload: Dict, num_ctx: Optional[int]) -> None:
-        """Add num_ctx to payload options.
+    def _build_options(self, payload: Dict, options: Dict) -> None:
+        """Build options dictionary from kwargs and add to payload.
 
         Args:
             payload: The payload dictionary to modify
-            num_ctx: Context window size for the model (uses CONTEXT_WINDOW if None)
+            options: Dictionary of optional parameters (num_ctx, num_predict, suffix)
         """
-        if num_ctx is None:
-            num_ctx = CONTEXT_WINDOW
-        payload['options'] = {'num_ctx': num_ctx}
+        payload_options = {}
 
-    def _add_num_predict_option(self, payload: Dict, num_predict: Optional[int]) -> None:
-        """Add num_predict to payload options.
+        # Handle num_ctx with default
+        if 'num_ctx' in options:
+            payload_options['num_ctx'] = options.pop('num_ctx')
+        else:
+            payload_options['num_ctx'] = CONTEXT_WINDOW
 
-        Args:
-            payload: The payload dictionary to modify
-            num_predict: Maximum tokens allowed in response (uses MAX_RESPONSE_TOKENS if None)
-        """
-        if num_predict is None:
-            num_predict = MAX_RESPONSE_TOKENS
-        if 'options' not in payload:
-            payload['options'] = {}
-        payload['options']['num_predict'] = num_predict
+        # Handle num_predict with default
+        if 'num_predict' in options:
+            payload_options['num_predict'] = options.pop('num_predict')
+        else:
+            payload_options['num_predict'] = MAX_RESPONSE_TOKENS
 
-    def _add_suffix_option(self, payload: Dict, suffix: Optional[str]) -> None:
-        """Add suffix to payload if provided.
+        payload['options'] = payload_options
 
-        Args:
-            payload: The payload dictionary to modify
-            suffix: Text to append after the generated response (added if not None)
-        """
-        if suffix is not None:
-            payload['suffix'] = suffix
+        # Handle suffix (optional, no default)
+        if 'suffix' in options:
+            payload['suffix'] = options.pop('suffix')
 
     def show_model_info(self, model: str, timeout: Optional[float] = 2) -> Dict:
         """Fetch detailed information about a specific model.
@@ -184,14 +175,15 @@ class OllamaAPIClient:
         return self._request('POST', '/api/show', json_data=payload,
                            timeout=timeout or 2)
 
-    def embeddings(self, model: str, prompt: str, num_ctx: int = CONTEXT_WINDOW, timeout: Optional[float] = TIMEOUT) -> Dict:
+    def embeddings(self, model: str, prompt: str, **kwargs) -> Dict:
         """Generate embeddings for a given text using a specified model.
 
         Args:
             model: Name of the model to use for embedding
             prompt: Text to generate embeddings for
-            num_ctx: Context window size for the model
-            timeout: Request timeout in seconds (default: 30s)
+            **kwargs: Optional parameters including:
+                num_ctx: Context window size for the model (default: 4096)
+                timeout: Request timeout in seconds (default: 3600s)
 
         Returns:
             Dictionary containing the embedding vector and metadata
@@ -202,13 +194,14 @@ class OllamaAPIClient:
             OllamaHTTPError: If API returns non-200 status
             OllamaAPIException: If response cannot be parsed
         """
+        timeout = kwargs.pop('timeout', TIMEOUT)
         payload = {
             'model': model,
             'prompt': prompt
         }
-        self._add_num_ctx_option(payload, num_ctx)
+        self._build_options(payload, kwargs)
         return self._request('POST', '/api/embeddings', json_data=payload,
-                           timeout=timeout or 30)
+                           timeout=timeout)
 
     def _request(self, method: str, endpoint: str, json_data: Optional[Dict] = None,
                  timeout: float = 2) -> Dict:

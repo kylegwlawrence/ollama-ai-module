@@ -111,15 +111,12 @@ class ChatSession:
       json.dump(session_data, f, indent=2, ensure_ascii=False)
 
 
-  def send_message(self, user_message: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
-    """Send a message with chat history, get a response, and update chat history
+  def send_message(self, user_message: str, **kwargs) -> str:
+    """Append a use_message to the chat history, send history to the chat endpopint, get a response, and update chat history
 
     Args:
-      user_message: User's message text
-      num_ctx: Context window size for the model (optional)
-      num_predict: Maximum tokens allowed in the response (optional)
-      suffix: Text to append after the generated response (optional)
-      timeout: Request timeout in seconds (optional)
+      user_message: User's new message text
+      **kwargs: Optional parameters (num_ctx, num_predict, suffix, timeout)
 
     Returns:
       Assistant's response text
@@ -130,10 +127,7 @@ class ChatSession:
     # Send message with full history using the chat API
     response = self.model.chat(
         self.messages,
-        num_ctx=num_ctx,
-        num_predict=num_predict,
-        suffix=suffix,
-        timeout=timeout
+        **kwargs
     )
 
     # Add assistant response to history
@@ -210,7 +204,7 @@ class ChatSession:
     # Add new system message at the beginning
     self.messages.insert(0, {'role': 'system', 'content': system_prompt})
 
-  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=CHAT_SUMMARY_MAX_WORD_COUNT, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> None:
+  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=CHAT_SUMMARY_MAX_WORD_COUNT, **kwargs) -> None:
     """Generate a concise summary of the entire conversation and save it to the session file.
 
     Analyzes all user and assistant messages to create a summary that describes
@@ -219,10 +213,7 @@ class ChatSession:
     Args:
       model_name: The name of the model to use for summarization (default: 'qwen3:0.6b').
       max_word_count: Maximum number of words in the summary (default: 8).
-      num_ctx: Context window size for the model (optional)
-      num_predict: Maximum tokens allowed in the response (optional)
-      suffix: Text to append after the generated response (optional). Works for "fill in the middle" prompts. 
-      timeout: Request timeout in seconds (optional)
+      **kwargs: Optional parameters (num_ctx, num_predict, suffix, timeout)
 
     Returns:
       None
@@ -268,7 +259,7 @@ CONVERSATION THREAD:
 """
 
     # Get the summary from the model
-    summary = model.generate(prompt, num_ctx=num_ctx, num_predict=num_predict, suffix=suffix, timeout=timeout)
+    summary = model.generate(prompt, **kwargs)
 
     # Clean up the response (strip whitespace and newlines)
     summary = summary.strip()
