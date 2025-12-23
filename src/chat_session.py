@@ -110,11 +110,14 @@ class ChatSession:
       json.dump(session_data, f, indent=2, ensure_ascii=False)
 
 
-  def send_message(self, user_message: str) -> str:
+  def send_message(self, user_message: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
     """Send a message with chat history, get a response, and update chat history
 
     Args:
       user_message: User's message text
+      num_ctx: Context window size for the model (optional)
+      num_predict: Maximum tokens allowed in the response (optional)
+      timeout: Request timeout in seconds (optional)
 
     Returns:
       Assistant's response text
@@ -122,8 +125,13 @@ class ChatSession:
     # Add user message to history
     self.messages.append({'role': 'user', 'content': user_message})
 
-    # Send message with full history using OllamaModel.send_prompt
-    response = self.model.send_prompt(self.messages, return_output=True)
+    # Send message with full history using the chat API
+    response = self.model.prompt_chat_api(
+        self.messages,
+        num_ctx=num_ctx,
+        num_predict=num_predict,
+        timeout=timeout
+    )
 
     # Add assistant response to history
     self.messages.append({'role': 'assistant', 'content': response})

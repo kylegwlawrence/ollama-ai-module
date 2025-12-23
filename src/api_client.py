@@ -62,7 +62,7 @@ class OllamaAPIClient:
             OllamaHTTPError: If API returns non-200 status
             OllamaAPIException: If response cannot be parsed
         """
-        return self._request('GET', '/api/tags', timeout=timeout or 2)
+        return self._request('GET', '/api/tags', timeout=timeout)
 
     def generate(self, model: str, prompt: str, stream: bool = False,
                  num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = TIMEOUT) -> Dict:

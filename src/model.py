@@ -2,7 +2,7 @@ import subprocess
 import threading
 import time
 from datetime import datetime, timedelta
-from typing import Optional, Dict, Tuple, Union, List
+from typing import Optional, Dict, Tuple, List
 
 from src.server import OllamaServer
 from src.api_client import OllamaConnectionError, OllamaTimeoutError, OllamaAPIException
@@ -56,31 +56,6 @@ class OllamaModel:
             print(f"Error stopping model '{self.model_name}': {e}")
          
             
-    def prompt_cli(self, prompt: str, return_output: bool = False) -> Optional[str]:
-        """Runs an Ollama model via terminal and returns the output.
-
-        Args:
-            model_name: Name of the model to run
-            prompt: The prompt to send to the model
-            return_output: If True, return the output. If False, print it.
-
-        Returns:
-            The model's output if return_output=True, None otherwise
-        """
-        try:
-            print("Running model via CLI...")
-            result = subprocess.run(['ollama', 'run', self.model_name],
-            input=prompt, capture_output=True, text=True, check=True)
-            if return_output:
-                return result.stdout
-            else:
-                print(result.stdout)
-        except subprocess.CalledProcessError as e:
-            if return_output:
-                raise
-            else:
-                print(f"Error running Ollama: {e}")
-                
     def prompt_generate_api(self, prompt: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
         """Send one chat message to Ollama using the /api/generate endpoint.
 
@@ -94,14 +69,13 @@ class OllamaModel:
             The model's response as a string
         """
         try:
-            kwargs = {'model': self.model_name, 'prompt': prompt}
-            if num_ctx is not None:
-                kwargs['num_ctx'] = num_ctx
-            if num_predict is not None:
-                kwargs['num_predict'] = num_predict
-            if timeout is not None:
-                kwargs['timeout'] = timeout
-            data = self.server.api_client.generate(**kwargs)
+            data = self.server.api_client.generate(
+                model=self.model_name,
+                prompt=prompt,
+                num_ctx=num_ctx,
+                num_predict=num_predict,
+                timeout=timeout
+            )
             return data.get('response', '')
         except OllamaAPIException as e:
             raise Exception(f"Error sending prompt to model: {e}")
@@ -119,52 +93,16 @@ class OllamaModel:
             The assistant's response as a string
         """
         try:
-            kwargs = {'model': self.model_name, 'messages': messages}
-            if num_ctx is not None:
-                kwargs['num_ctx'] = num_ctx
-            if num_predict is not None:
-                kwargs['num_predict'] = num_predict
-            if timeout is not None:
-                kwargs['timeout'] = timeout
-            data = self.server.api_client.chat(**kwargs)
+            data = self.server.api_client.chat(
+                model=self.model_name,
+                messages=messages,
+                num_ctx=num_ctx,
+                num_predict=num_predict,
+                timeout=timeout
+            )
             return data.get('message', {}).get('content', '')
         except OllamaAPIException as e:
             raise Exception(f"Error sending chat message to model: {e}")
-        
-    def send_prompt(self, prompt: Union[str, List[Dict[str, str]]], return_output: bool = False, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> Optional[str]:
-        """Run a prompt on a model, using the API if model is running, otherwise use CLI.
-
-        Args:
-            prompt: Either a string prompt or a list of message dicts with 'role' and 'content' keys
-            return_output: If True, return the response. If False, print it.
-            num_ctx: Context window size for the model (optional)
-            num_predict: Maximum tokens allowed in the response (optional)
-            timeout: Request timeout in seconds (optional)
-
-        Returns:
-            The model's response if return_output=True, None otherwise
-
-        Raises:
-            RuntimeError: If Ollama server is not running
-        """
-        # Handle chat message history (list of dicts)
-        if isinstance(prompt, list):
-            # Chat API only works with running model
-            if self.is_model_running():
-                response = self.prompt_chat_api(prompt, num_ctx=num_ctx, num_predict=num_predict, timeout=timeout)
-            else:
-                raise RuntimeError("Chat API requires the model to be running. Please start the model first.")
-        else:
-            # Handle string prompt
-            if self.is_model_running():
-                response = self.prompt_generate_api(prompt, num_ctx=num_ctx, num_predict=num_predict, timeout=timeout)
-            else:
-                response = self.prompt_cli(prompt, return_output=True)
-
-        if return_output:
-            return response
-        else:
-            print(response)
 
 
 class ModelInactivityMonitor:
