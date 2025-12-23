@@ -7,3 +7,4 @@ benchmarks/
 .DS_Store
 .conversations/
 prompt_many_models.py
+test_prompts/
