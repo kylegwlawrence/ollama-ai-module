@@ -3,6 +3,8 @@ from typing import Optional, Dict, List
 
 HOST = '127.0.0.1'
 PORT = 11434
+CONTEXT_WINDOW = 2048
+TIMEOUT = 3600 # 1 hour
 
 # Custom Exception Hierarchy
 class OllamaAPIException(Exception):
@@ -62,13 +64,14 @@ class OllamaAPIClient:
         return self._request('GET', '/api/tags', timeout=timeout or 2)
 
     def generate(self, model: str, prompt: str, stream: bool = False,
-                 timeout: Optional[float] = 600) -> Dict:
+                 num_ctx: int = CONTEXT_WINDOW, timeout: Optional[float] = TIMEOUT) -> Dict:
         """Send a text prompt to generate a response.
 
         Args:
             model: Name of the model to use
             prompt: The prompt text to send
             stream: Whether to stream the response (not yet implemented)
+            num_ctx: Context window size for the model
             timeout: Request timeout in seconds (default: 600s for generation)
 
         Returns:
@@ -85,17 +88,19 @@ class OllamaAPIClient:
             'prompt': prompt,
             'stream': stream
         }
+        self._add_num_ctx_option(payload, num_ctx)
         return self._request('POST', '/api/generate', json_data=payload,
                            timeout=timeout)
 
     def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False,
-             timeout: Optional[float] = 600) -> Dict:
+             num_ctx: int = CONTEXT_WINDOW, timeout: Optional[float] = TIMEOUT) -> Dict:
         """Send chat messages to get a conversational response.
 
         Args:
             model: Name of the model to use
             messages: List of message dicts with 'role' and 'content' keys
             stream: Whether to stream the response (not yet implemented)
+            num_ctx: Context window size for the model
             timeout: Request timeout in seconds (default: 300s for chat)
 
         Returns:
@@ -112,8 +117,18 @@ class OllamaAPIClient:
             'messages': messages,
             'stream': stream
         }
+        self._add_num_ctx_option(payload, num_ctx)
         return self._request('POST', '/api/chat', json_data=payload,
                            timeout=timeout)
+
+    def _add_num_ctx_option(self, payload: Dict, num_ctx: int) -> None:
+        """Add num_ctx to payload options.
+
+        Args:
+            payload: The payload dictionary to modify
+            num_ctx: Context window size for the model
+        """
+        payload['options'] = {'num_ctx': num_ctx}
 
     def show_model_info(self, model: str, timeout: Optional[float] = 2) -> Dict:
         """Fetch detailed information about a specific model.
@@ -135,12 +150,13 @@ class OllamaAPIClient:
         return self._request('POST', '/api/show', json_data=payload,
                            timeout=timeout or 2)
 
-    def embeddings(self, model: str, prompt: str, timeout: Optional[float] = 30) -> Dict:
+    def embeddings(self, model: str, prompt: str, num_ctx: int = CONTEXT_WINDOW, timeout: Optional[float] = TIMEOUT) -> Dict:
         """Generate embeddings for a given text using a specified model.
 
         Args:
             model: Name of the model to use for embedding
             prompt: Text to generate embeddings for
+            num_ctx: Context window size for the model
             timeout: Request timeout in seconds (default: 30s)
 
         Returns:
@@ -156,6 +172,7 @@ class OllamaAPIClient:
             'model': model,
             'prompt': prompt
         }
+        self._add_num_ctx_option(payload, num_ctx)
         return self._request('POST', '/api/embeddings', json_data=payload,
                            timeout=timeout or 30)
 
