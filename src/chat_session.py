@@ -199,7 +199,7 @@ class ChatSession:
     # Add new system message at the beginning
     self.messages.insert(0, {'role': 'system', 'content': system_prompt})
 
-  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=8) -> None:
+  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=8, num_ctx: Optional[int] = None, timeout: Optional[float] = None) -> None:
     """Generate a concise summary of the entire conversation and save it to the session file.
 
     Analyzes all user and assistant messages to create a summary that describes
@@ -258,7 +258,7 @@ CONVERSATION THREAD:
 Summary ({max_word_count} words max, focusing on the ORIGINAL topic from the start):"""
 
     # Get the summary from the model
-    summary = model.prompt_generate_api(prompt)
+    summary = model.prompt_generate_api(prompt, num_ctx=num_ctx, timeout=timeout)
 
     # Clean up the response (strip whitespace and newlines)
     summary = summary.strip()
