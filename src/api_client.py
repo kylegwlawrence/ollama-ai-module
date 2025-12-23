@@ -115,6 +115,50 @@ class OllamaAPIClient:
         return self._request('POST', '/api/chat', json_data=payload,
                            timeout=timeout)
 
+    def show_model_info(self, model: str, timeout: Optional[float] = 2) -> Dict:
+        """Fetch detailed information about a specific model.
+
+        Args:
+            model: Name of the model to get information about
+            timeout: Request timeout in seconds (default: 2s)
+
+        Returns:
+            Dictionary containing detailed model information
+
+        Raises:
+            OllamaConnectionError: If unable to connect to server
+            OllamaTimeoutError: If request times out
+            OllamaHTTPError: If API returns non-200 status
+            OllamaAPIException: If response cannot be parsed
+        """
+        payload = {'model': model}
+        return self._request('POST', '/api/show', json_data=payload,
+                           timeout=timeout or 2)
+
+    def embeddings(self, model: str, prompt: str, timeout: Optional[float] = 30) -> Dict:
+        """Generate embeddings for a given text using a specified model.
+
+        Args:
+            model: Name of the model to use for embedding
+            prompt: Text to generate embeddings for
+            timeout: Request timeout in seconds (default: 30s)
+
+        Returns:
+            Dictionary containing the embedding vector and metadata
+
+        Raises:
+            OllamaConnectionError: If unable to connect to server
+            OllamaTimeoutError: If request times out
+            OllamaHTTPError: If API returns non-200 status
+            OllamaAPIException: If response cannot be parsed
+        """
+        payload = {
+            'model': model,
+            'prompt': prompt
+        }
+        return self._request('POST', '/api/embeddings', json_data=payload,
+                           timeout=timeout or 30)
+
     def _request(self, method: str, endpoint: str, json_data: Optional[Dict] = None,
                  timeout: float = 2) -> Dict:
         """Make an HTTP request to the Ollama API.

@@ -6,3 +6,4 @@ __pycache__/
 benchmarks/
 .DS_Store
 .conversations/
+prompt_many_models.py
