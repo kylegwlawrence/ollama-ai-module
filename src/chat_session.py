@@ -6,6 +6,7 @@ from pathlib import Path
 from src.model import OllamaModel
 
 CHAT_SUMMARY_MODEL = 'gemma3:1b-it-q4_K_M'
+CHAT_SUMMARY_MAX_WORD_COUNT = 8
 
 class ChatSession:
   """Manages a conversation session with persistence."""
@@ -110,13 +111,14 @@ class ChatSession:
       json.dump(session_data, f, indent=2, ensure_ascii=False)
 
 
-  def send_message(self, user_message: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
+  def send_message(self, user_message: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
     """Send a message with chat history, get a response, and update chat history
 
     Args:
       user_message: User's message text
       num_ctx: Context window size for the model (optional)
       num_predict: Maximum tokens allowed in the response (optional)
+      suffix: Text to append after the generated response (optional)
       timeout: Request timeout in seconds (optional)
 
     Returns:
@@ -130,6 +132,7 @@ class ChatSession:
         self.messages,
         num_ctx=num_ctx,
         num_predict=num_predict,
+        suffix=suffix,
         timeout=timeout
     )
 
@@ -207,7 +210,7 @@ class ChatSession:
     # Add new system message at the beginning
     self.messages.insert(0, {'role': 'system', 'content': system_prompt})
 
-  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=8, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> None:
+  def summarize_conversation(self, model_name=CHAT_SUMMARY_MODEL, max_word_count=CHAT_SUMMARY_MAX_WORD_COUNT, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> None:
     """Generate a concise summary of the entire conversation and save it to the session file.
 
     Analyzes all user and assistant messages to create a summary that describes
@@ -216,6 +219,10 @@ class ChatSession:
     Args:
       model_name: The name of the model to use for summarization (default: 'qwen3:0.6b').
       max_word_count: Maximum number of words in the summary (default: 8).
+      num_ctx: Context window size for the model (optional)
+      num_predict: Maximum tokens allowed in the response (optional)
+      suffix: Text to append after the generated response (optional). Works for "fill in the middle" prompts. 
+      timeout: Request timeout in seconds (optional)
 
     Returns:
       None
@@ -248,25 +255,20 @@ class ChatSession:
     model = OllamaModel(model_name, server)
 
     # Create a prompt that instructs the model to summarize the conversation with heavy focus on early messages
-    prompt = f"""You are a conversation summarization assistant. Your task is to create a concise summary focused on the ORIGINAL topic from the start of the conversation.
+    prompt = f"""You are a conversation summarization assistant.
 
-Instructions:
+INSTRUCTIONS:
 - Create a summary of the conversation in {max_word_count} words or fewer
-- **FOCUS PRIMARILY on the first 3-5 message exchanges** - these contain the main topic and original intent
-- The beginning of the conversation is the most important part for the summary
-- Later messages may elaborate, drift, or change topics - de-emphasize these
-- Identify the main topic, question, or problem from the BEGINNING of the conversation
-- If the conversation shifted topics, summarize the ORIGINAL topic, not where it ended
-- Use clear, descriptive language that captures the primary initial topic
+- Identify the main topic, question, or problem of the conversation
+- Use clear, descriptive language
 - Output ONLY the summary text, nothing else
 
 CONVERSATION THREAD:
 {conversation_text}
-
-Summary ({max_word_count} words max, focusing on the ORIGINAL topic from the start):"""
+"""
 
     # Get the summary from the model
-    summary = model.prompt_generate_api(prompt, num_ctx=num_ctx, num_predict=num_predict, timeout=timeout)
+    summary = model.prompt_generate_api(prompt, num_ctx=num_ctx, num_predict=num_predict, suffix=suffix, timeout=timeout)
 
     # Clean up the response (strip whitespace and newlines)
     summary = summary.strip()

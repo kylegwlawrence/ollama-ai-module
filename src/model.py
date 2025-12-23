@@ -56,13 +56,14 @@ class OllamaModel:
             print(f"Error stopping model '{self.model_name}': {e}")
          
             
-    def prompt_generate_api(self, prompt: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
+    def prompt_generate_api(self, prompt: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
         """Send one chat message to Ollama using the /api/generate endpoint.
 
         Args:
             prompt: The prompt to send
             num_ctx: Context window size for the model (optional)
             num_predict: Maximum tokens allowed in the response (optional)
+            suffix: Text to append after the generated response (optional)
             timeout: Request timeout in seconds (optional)
 
         Returns:
@@ -74,19 +75,21 @@ class OllamaModel:
                 prompt=prompt,
                 num_ctx=num_ctx,
                 num_predict=num_predict,
+                suffix=suffix,
                 timeout=timeout
             )
             return data.get('response', '')
         except OllamaAPIException as e:
             raise Exception(f"Error sending prompt to model: {e}")
     
-    def prompt_chat_api(self, messages: List[Dict[str, str]], num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
+    def prompt_chat_api(self, messages: List[Dict[str, str]], num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
         """Send chat messages to Ollama using /api/chat endpoint.
 
         Args:
             messages: List of message dicts with 'role' and 'content' keys
             num_ctx: Context window size for the model (optional)
             num_predict: Maximum tokens allowed in the response (optional)
+            suffix: Text to append after the generated response (optional)
             timeout: Request timeout in seconds (optional)
 
         Returns:
@@ -98,6 +101,7 @@ class OllamaModel:
                 messages=messages,
                 num_ctx=num_ctx,
                 num_predict=num_predict,
+                suffix=suffix,
                 timeout=timeout
             )
             return data.get('message', {}).get('content', '')

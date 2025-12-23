@@ -3,8 +3,8 @@ from typing import Optional, Dict, List
 
 HOST = '127.0.0.1'
 PORT = 11434
-CONTEXT_WINDOW = 4096 # includes prompt and response
-MAX_RESPONSE_TOKENS = 2048 # response tokens only
+CONTEXT_WINDOW = 4096 # Includes system message, prompt and response. Default a high context window is better than truncating prompts. 
+MAX_RESPONSE_TOKENS = 2048 # Response context size only. Will truncate response if it exceeds this limit. 
 TIMEOUT = 3600 # 1 hour
 
 # Custom Exception Hierarchy
@@ -65,7 +65,7 @@ class OllamaAPIClient:
         return self._request('GET', '/api/tags', timeout=timeout)
 
     def generate(self, model: str, prompt: str, stream: bool = False,
-                 num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = TIMEOUT) -> Dict:
+                 num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = TIMEOUT) -> Dict:
         """Send a text prompt to generate a response.
 
         Args:
@@ -74,6 +74,7 @@ class OllamaAPIClient:
             stream: Whether to stream the response (not yet implemented)
             num_ctx: Context window size for the model
             num_predict: Maximum tokens allowed in the response (optional)
+            suffix: Text to append after the generated response (optional)
             timeout: Request timeout in seconds (default: 600s for generation)
 
         Returns:
@@ -92,11 +93,12 @@ class OllamaAPIClient:
         }
         self._add_num_ctx_option(payload, num_ctx)
         self._add_num_predict_option(payload, num_predict)
+        self._add_suffix_option(payload, suffix)
         return self._request('POST', '/api/generate', json_data=payload,
                            timeout=timeout)
 
     def chat(self, model: str, messages: List[Dict[str, str]], stream: bool = False,
-             num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = TIMEOUT) -> Dict:
+             num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = TIMEOUT) -> Dict:
         """Send chat messages to get a conversational response.
 
         Args:
@@ -105,6 +107,7 @@ class OllamaAPIClient:
             stream: Whether to stream the response (not yet implemented)
             num_ctx: Context window size for the model
             num_predict: Maximum tokens allowed in the response (optional)
+            suffix: Text to append after the generated response (optional)
             timeout: Request timeout in seconds (default: 300s for chat)
 
         Returns:
@@ -123,6 +126,7 @@ class OllamaAPIClient:
         }
         self._add_num_ctx_option(payload, num_ctx)
         self._add_num_predict_option(payload, num_predict)
+        self._add_suffix_option(payload, suffix)
         return self._request('POST', '/api/chat', json_data=payload,
                            timeout=timeout)
 
@@ -149,6 +153,16 @@ class OllamaAPIClient:
         if 'options' not in payload:
             payload['options'] = {}
         payload['options']['num_predict'] = num_predict
+
+    def _add_suffix_option(self, payload: Dict, suffix: Optional[str]) -> None:
+        """Add suffix to payload if provided.
+
+        Args:
+            payload: The payload dictionary to modify
+            suffix: Text to append after the generated response (added if not None)
+        """
+        if suffix is not None:
+            payload['suffix'] = suffix
 
     def show_model_info(self, model: str, timeout: Optional[float] = 2) -> Dict:
         """Fetch detailed information about a specific model.
