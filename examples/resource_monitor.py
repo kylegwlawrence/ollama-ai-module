@@ -11,7 +11,7 @@ from pathlib import Path
 # Add parent directory to path so we can import src module
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from src.resource_monitor import ResourceMonitor
+from src.utilities import ResourceMonitor
 
 if __name__ == "__main__":
     # Monitor the init process (PID 1) which always runs on Linux

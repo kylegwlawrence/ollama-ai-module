@@ -115,7 +115,7 @@ is_available = server.is_server_available()
 ### ResourceMonitor - Track Performance
 
 ```python
-from src.resource_monitor import ResourceMonitor
+from src.utilities import ResourceMonitor
 import os
 
 monitor = ResourceMonitor(os.getpid())

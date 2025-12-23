@@ -6,7 +6,7 @@ from typing import Optional, Dict, Tuple, List
 
 from src.server import OllamaServer
 from src.api_client import OllamaConnectionError, OllamaTimeoutError, OllamaAPIException
-from src.resource_monitor import ResourceMonitor
+from src.utilities import ResourceMonitor
 
 class OllamaModel:
     """Manages interactions with the AI model."""
