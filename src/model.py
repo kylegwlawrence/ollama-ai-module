@@ -56,7 +56,7 @@ class OllamaModel:
             print(f"Error stopping model '{self.model_name}': {e}")
          
             
-    def prompt_generate_api(self, prompt: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
+    def generate(self, prompt: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
         """Send one chat message to Ollama using the /api/generate endpoint.
 
         Args:
@@ -82,7 +82,7 @@ class OllamaModel:
         except OllamaAPIException as e:
             raise Exception(f"Error sending prompt to model: {e}")
     
-    def prompt_chat_api(self, messages: List[Dict[str, str]], num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
+    def chat(self, messages: List[Dict[str, str]], num_ctx: Optional[int] = None, num_predict: Optional[int] = None, suffix: Optional[str] = None, timeout: Optional[float] = None) -> str:
         """Send chat messages to Ollama using /api/chat endpoint.
 
         Args:

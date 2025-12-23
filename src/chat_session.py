@@ -128,7 +128,7 @@ class ChatSession:
     self.messages.append({'role': 'user', 'content': user_message})
 
     # Send message with full history using the chat API
-    response = self.model.prompt_chat_api(
+    response = self.model.chat(
         self.messages,
         num_ctx=num_ctx,
         num_predict=num_predict,
@@ -268,7 +268,7 @@ CONVERSATION THREAD:
 """
 
     # Get the summary from the model
-    summary = model.prompt_generate_api(prompt, num_ctx=num_ctx, num_predict=num_predict, suffix=suffix, timeout=timeout)
+    summary = model.generate(prompt, num_ctx=num_ctx, num_predict=num_predict, suffix=suffix, timeout=timeout)
 
     # Clean up the response (strip whitespace and newlines)
     summary = summary.strip()
