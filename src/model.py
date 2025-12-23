@@ -81,12 +81,13 @@ class OllamaModel:
             else:
                 print(f"Error running Ollama: {e}")
                 
-    def prompt_generate_api(self, prompt: str, num_ctx: Optional[int] = None, timeout: Optional[float] = None) -> str:
+    def prompt_generate_api(self, prompt: str, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
         """Send one chat message to Ollama using the /api/generate endpoint.
 
         Args:
             prompt: The prompt to send
             num_ctx: Context window size for the model (optional)
+            num_predict: Maximum tokens allowed in the response (optional)
             timeout: Request timeout in seconds (optional)
 
         Returns:
@@ -96,6 +97,8 @@ class OllamaModel:
             kwargs = {'model': self.model_name, 'prompt': prompt}
             if num_ctx is not None:
                 kwargs['num_ctx'] = num_ctx
+            if num_predict is not None:
+                kwargs['num_predict'] = num_predict
             if timeout is not None:
                 kwargs['timeout'] = timeout
             data = self.server.api_client.generate(**kwargs)
@@ -103,12 +106,13 @@ class OllamaModel:
         except OllamaAPIException as e:
             raise Exception(f"Error sending prompt to model: {e}")
     
-    def prompt_chat_api(self, messages: List[Dict[str, str]], num_ctx: Optional[int] = None, timeout: Optional[float] = None) -> str:
+    def prompt_chat_api(self, messages: List[Dict[str, str]], num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> str:
         """Send chat messages to Ollama using /api/chat endpoint.
 
         Args:
             messages: List of message dicts with 'role' and 'content' keys
             num_ctx: Context window size for the model (optional)
+            num_predict: Maximum tokens allowed in the response (optional)
             timeout: Request timeout in seconds (optional)
 
         Returns:
@@ -118,6 +122,8 @@ class OllamaModel:
             kwargs = {'model': self.model_name, 'messages': messages}
             if num_ctx is not None:
                 kwargs['num_ctx'] = num_ctx
+            if num_predict is not None:
+                kwargs['num_predict'] = num_predict
             if timeout is not None:
                 kwargs['timeout'] = timeout
             data = self.server.api_client.chat(**kwargs)
@@ -125,13 +131,14 @@ class OllamaModel:
         except OllamaAPIException as e:
             raise Exception(f"Error sending chat message to model: {e}")
         
-    def send_prompt(self, prompt: Union[str, List[Dict[str, str]]], return_output: bool = False, num_ctx: Optional[int] = None, timeout: Optional[float] = None) -> Optional[str]:
+    def send_prompt(self, prompt: Union[str, List[Dict[str, str]]], return_output: bool = False, num_ctx: Optional[int] = None, num_predict: Optional[int] = None, timeout: Optional[float] = None) -> Optional[str]:
         """Run a prompt on a model, using the API if model is running, otherwise use CLI.
 
         Args:
             prompt: Either a string prompt or a list of message dicts with 'role' and 'content' keys
             return_output: If True, return the response. If False, print it.
             num_ctx: Context window size for the model (optional)
+            num_predict: Maximum tokens allowed in the response (optional)
             timeout: Request timeout in seconds (optional)
 
         Returns:
@@ -144,13 +151,13 @@ class OllamaModel:
         if isinstance(prompt, list):
             # Chat API only works with running model
             if self.is_model_running():
-                response = self.prompt_chat_api(prompt, num_ctx=num_ctx, timeout=timeout)
+                response = self.prompt_chat_api(prompt, num_ctx=num_ctx, num_predict=num_predict, timeout=timeout)
             else:
                 raise RuntimeError("Chat API requires the model to be running. Please start the model first.")
         else:
             # Handle string prompt
             if self.is_model_running():
-                response = self.prompt_generate_api(prompt, num_ctx=num_ctx, timeout=timeout)
+                response = self.prompt_generate_api(prompt, num_ctx=num_ctx, num_predict=num_predict, timeout=timeout)
             else:
                 response = self.prompt_cli(prompt, return_output=True)
 
