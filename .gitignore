@@ -8,4 +8,3 @@ benchmarks/
 .conversations/
 prompt_many_models.py
 test_prompts/
-models.json
