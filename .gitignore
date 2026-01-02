@@ -6,5 +6,9 @@ __pycache__/
 benchmarks/
 .DS_Store
 .conversations/
+<<<<<<< HEAD
 prompt_many_models.py
 test_prompts/
+=======
+recyclables/
+>>>>>>> fa6db45 (Add ToolAgent with file read/write capabilities for Ollama models)
