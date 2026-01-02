@@ -47,11 +47,33 @@ FILE_TOOLS = [
 ]
 
 
-def _execute_read_file(path: str, base_path: Optional[Path] = None) -> str:
-    """Execute read_file tool."""
+def _resolve_path(path: str, base_path: Optional[Path], restrict: bool) -> tuple[Path, Optional[str]]:
+    """Resolve a path and optionally check it's within base_path.
+
+    Returns:
+        Tuple of (resolved_path, error_message). error_message is None if valid.
+    """
     file_path = Path(path)
     if base_path and not file_path.is_absolute():
         file_path = base_path / file_path
+
+    file_path = file_path.resolve()
+
+    if restrict and base_path:
+        base_resolved = base_path.resolve()
+        try:
+            file_path.relative_to(base_resolved)
+        except ValueError:
+            return file_path, f"Error: Access denied - path '{path}' is outside allowed directory"
+
+    return file_path, None
+
+
+def _execute_read_file(path: str, base_path: Optional[Path] = None, restrict: bool = False) -> str:
+    """Execute read_file tool."""
+    file_path, error = _resolve_path(path, base_path, restrict)
+    if error:
+        return error
 
     if not file_path.exists():
         return f"Error: File '{file_path}' not found"
@@ -62,11 +84,11 @@ def _execute_read_file(path: str, base_path: Optional[Path] = None) -> str:
         return f"Error reading file: {e}"
 
 
-def _execute_write_file(path: str, content: str, base_path: Optional[Path] = None) -> str:
+def _execute_write_file(path: str, content: str, base_path: Optional[Path] = None, restrict: bool = False) -> str:
     """Execute write_file tool."""
-    file_path = Path(path)
-    if base_path and not file_path.is_absolute():
-        file_path = base_path / file_path
+    file_path, error = _resolve_path(path, base_path, restrict)
+    if error:
+        return error
 
     try:
         file_path.parent.mkdir(parents=True, exist_ok=True)
@@ -88,14 +110,20 @@ class ToolAgent:
     def __init__(self, client: OllamaAPIClient, model: str,
                  tools: Optional[List[Dict]] = None,
                  tool_executors: Optional[Dict[str, Callable]] = None,
-                 base_path: Optional[Path] = None,
-                 max_iterations: int = 10):
+                 read_base_path: Optional[Path] = None,
+                 write_base_path: Optional[Path] = None,
+                 max_iterations: int = 10,
+                 timeout: Optional[float] = 600,
+                 restrict_to_base: bool = False):
         self.client = client
         self.model = model
         self.tools = tools or FILE_TOOLS
         self.tool_executors = tool_executors or TOOL_EXECUTORS
-        self.base_path = base_path or Path.cwd()
+        self.read_base_path = read_base_path or Path.cwd()
+        self.write_base_path = write_base_path or Path.cwd()
         self.max_iterations = max_iterations
+        self.timeout = timeout
+        self.restrict_to_base = restrict_to_base
 
     def run(self, prompt: str, system: Optional[str] = None) -> Dict[str, Any]:
         """Run the agent with a prompt, executing tools as needed.
@@ -115,7 +143,8 @@ class ToolAgent:
             response = self.client.chat_with_tools(
                 model=self.model,
                 messages=messages,
-                tools=self.tools
+                tools=self.tools,
+                timeout=self.timeout
             )
 
             assistant_message = response.get("message", {})
@@ -142,9 +171,9 @@ class ToolAgent:
                 executor = self.tool_executors.get(name)
                 if executor:
                     if name == "read_file":
-                        result = executor(args.get("path"), self.base_path)
+                        result = executor(args.get("path"), self.read_base_path, self.restrict_to_base)
                     elif name == "write_file":
-                        result = executor(args.get("path"), args.get("content"), self.base_path)
+                        result = executor(args.get("path"), args.get("content"), self.write_base_path, self.restrict_to_base)
                     else:
                         result = executor(**args)
                 else:
