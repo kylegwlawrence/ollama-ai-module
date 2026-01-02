@@ -128,7 +128,6 @@ class OllamaAPIClient:
         return self._request('POST', '/api/chat', json_data=payload,
                            timeout=timeout)
 
-<<<<<<< HEAD
     def _build_options(self, payload: Dict, options: Dict) -> None:
         """Build options dictionary from kwargs and add to payload.
 
@@ -165,22 +164,6 @@ class OllamaAPIClient:
 
         Returns:
             Dictionary containing detailed model information
-=======
-    def chat_with_tools(self, model: str, messages: List[Dict[str, str]],
-                        tools: List[Dict], stream: bool = False,
-                        timeout: Optional[float] = 600) -> Dict:
-        """Send chat messages with tool definitions.
-
-        Args:
-            model: Name of the model to use (must support tools)
-            messages: List of message dicts with 'role' and 'content' keys
-            tools: List of tool definitions in OpenAI-compatible format
-            stream: Whether to stream the response (not yet implemented)
-            timeout: Request timeout in seconds
-
-        Returns:
-            Dictionary with 'message' key containing response and optional 'tool_calls'
->>>>>>> fa6db45 (Add ToolAgent with file read/write capabilities for Ollama models)
 
         Raises:
             OllamaConnectionError: If unable to connect to server
@@ -188,7 +171,6 @@ class OllamaAPIClient:
             OllamaHTTPError: If API returns non-200 status
             OllamaAPIException: If response cannot be parsed
         """
-<<<<<<< HEAD
         payload = {'model': model}
         return self._request('POST', '/api/show', json_data=payload,
                            timeout=timeout or 2)
@@ -212,22 +194,13 @@ class OllamaAPIClient:
             OllamaHTTPError: If API returns non-200 status
             OllamaAPIException: If response cannot be parsed
         """
-        timeout = kwargs.pop('timeout', TIMEOUT)
+        timeout = TIMEOUT
         payload = {
             'model': model,
             'prompt': prompt
         }
         self._build_options(payload, kwargs)
         return self._request('POST', '/api/embeddings', json_data=payload,
-=======
-        payload = {
-            'model': model,
-            'messages': messages,
-            'tools': tools,
-            'stream': stream
-        }
-        return self._request('POST', '/api/chat', json_data=payload,
->>>>>>> fa6db45 (Add ToolAgent with file read/write capabilities for Ollama models)
                            timeout=timeout)
 
     def _request(self, method: str, endpoint: str, json_data: Optional[Dict] = None,

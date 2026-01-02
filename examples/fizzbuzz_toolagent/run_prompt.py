@@ -42,11 +42,26 @@ def main():
         print(f"Error: File 'prompt.md' not found in {prompt_path.parent}", file=sys.stderr)
         sys.exit(1)
 
-    prompt = prompt_path.read_text()
+    prompt_content = prompt_path.read_text()
 
-    if not prompt.strip():
+    if not prompt_content.strip():
         print("Error: prompt.md is empty.", file=sys.stderr)
         sys.exit(1)
+
+    # Build the full prompt with instructions to write Python files
+    prompt = f"""You have access to file read and write tools. Your task is to implement the code described in the specification below.
+
+IMPORTANT: You must use the write_file tool to create each Python file. Write complete, working Python code to .py files in the current directory.
+
+For example, if the spec calls for app.py, use write_file with path "app.py" and the full Python code as content.
+
+Create all the necessary Python files as described in the specification. Do not just describe what you would write - actually write the files using the write_file tool.
+
+Here is the specification to implement:
+
+{prompt_content}
+
+Now implement the code by writing each Python file using the write_file tool."""
 
     # Get model name
     if args.model:
@@ -64,8 +79,8 @@ def main():
     agent = ToolAgent(
         client,
         model=model_name,
-        read_base_path=Path(__file__).parent.parent,
-        write_base_path=Path(__file__).parent.parent,
+        read_base_path=Path(__file__).parent.parent / "src",  # hello-ollama/src/ for reading modules
+        write_base_path=Path(__file__).parent,  # recyclables/ for writing output files
         timeout=args.timeout
     )
     result = agent.run(prompt)
